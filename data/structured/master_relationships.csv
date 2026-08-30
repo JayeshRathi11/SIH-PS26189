@@ -1,0 +1,3 @@
+source_entity,source_type,relationship_type,target_entity,target_type,domain,phone_number,confidence
+Sethji,PERSON,INSTRUCTED,Devendra Solanki,PERSON,01_narcotics_trafficking,+91 99870 12345,0.95
+Bhai,PERSON,CALLED,Rakesh Pawar,PERSON,05_organized_extortion,+91 99870 12345,0.98

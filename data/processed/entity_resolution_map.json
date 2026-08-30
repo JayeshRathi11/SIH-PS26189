@@ -1,0 +1,64 @@
+{
+  "ENT_HUB_IQBAL_ANSARI": {
+    "canonical_id": "ENT_HUB_IQBAL_ANSARI",
+    "canonical_name": "Iqbal Ansari",
+    "type": "PERSON",
+    "aliases": [
+      "the contact",
+      "the buyer",
+      "I.A.",
+      "the fixer",
+      "Iqbal Ansari",
+      "the director",
+      "Sethji",
+      "the financier",
+      "the negotiator",
+      "the controller",
+      "the source contact",
+      "Bhai"
+    ],
+    "phone_numbers": [],
+    "domains": [
+      "07_counterfeit_currency",
+      "09_vehicle_theft_ring",
+      "10_land_grabbing_fraud",
+      "01_narcotics_trafficking",
+      "02_human_trafficking",
+      "08_illegal_betting_hawala",
+      "03_cyber_financial_fraud",
+      "05_organized_extortion",
+      "06_kidnapping_for_ransom",
+      "04_arms_smuggling"
+    ]
+  },
+  "ENT_VEHICLE_MH12AB5678": {
+    "canonical_id": "ENT_VEHICLE_MH12AB5678",
+    "canonical_name": "MH12AB5678",
+    "type": "VEHICLE",
+    "aliases": [
+      "MH12AB5678"
+    ],
+    "phone_numbers": [],
+    "domains": []
+  },
+  "ENT_PERSON_ILIYAS_KHAN": {
+    "canonical_id": "ENT_PERSON_ILIYAS_KHAN",
+    "canonical_name": "Iliyas Khan",
+    "type": "PERSON",
+    "aliases": [
+      "Iliyas Khan"
+    ],
+    "phone_numbers": [],
+    "domains": []
+  },
+  "ENT_VEHICLE_MH04XY2345": {
+    "canonical_id": "ENT_VEHICLE_MH04XY2345",
+    "canonical_name": "MH04XY2345",
+    "type": "VEHICLE",
+    "aliases": [
+      "MH04XY2345"
+    ],
+    "phone_numbers": [],
+    "domains": []
+  }
+}

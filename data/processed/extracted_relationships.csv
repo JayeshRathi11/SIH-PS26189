@@ -1,0 +1,4 @@
+source,source_type,relationship_type,target,target_type,confidence,evidence,domain,doc_id,raw_relationship_type,source_id,source_canonical,target_id,target_canonical
+MH12AB5678,VEHICLE,CALLED,Sethji,PERSON,0.9,MH12AB5678. Call intercept confirms Bunty called Sethji,01_narcotics_trafficking,FIR_01_001,CALLED,ENT_VEHICLE_MH12AB5678,MH12AB5678,ENT_HUB_IQBAL_ANSARI,Iqbal Ansari
+Sethji,PERSON,ASSOCIATE_OF,Iliyas Khan,PERSON,0.9,Sethji and Iliyas Khan. Sethji instructed Iliyas Khan,01_narcotics_trafficking,INT_01_002,ASSOCIATE_OF,ENT_HUB_IQBAL_ANSARI,Iqbal Ansari,ENT_PERSON_ILIYAS_KHAN,Iliyas Khan
+MH04XY2345,VEHICLE,CALLED,Bhai,PERSON,0.9,MH04XY2345. Rocky called Bhai,05_organized_extortion,FIR_05_001,CALLED,ENT_VEHICLE_MH04XY2345,MH04XY2345,ENT_HUB_IQBAL_ANSARI,Iqbal Ansari

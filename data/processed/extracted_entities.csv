@@ -1,0 +1,5 @@
+canonical_id,canonical_name,type,aliases,domains
+ENT_HUB_IQBAL_ANSARI,Iqbal Ansari,PERSON,the contact|the buyer|I.A.|the fixer|Iqbal Ansari|the director|Sethji|the financier|the negotiator|the controller|the source contact|Bhai,07_counterfeit_currency|09_vehicle_theft_ring|10_land_grabbing_fraud|01_narcotics_trafficking|02_human_trafficking|08_illegal_betting_hawala|03_cyber_financial_fraud|05_organized_extortion|06_kidnapping_for_ransom|04_arms_smuggling
+ENT_VEHICLE_MH12AB5678,MH12AB5678,VEHICLE,MH12AB5678,
+ENT_PERSON_ILIYAS_KHAN,Iliyas Khan,PERSON,Iliyas Khan,
+ENT_VEHICLE_MH04XY2345,MH04XY2345,VEHICLE,MH04XY2345,

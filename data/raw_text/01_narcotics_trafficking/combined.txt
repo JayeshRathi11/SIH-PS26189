@@ -1,0 +1,7 @@
+DOC_ID: FIR_01_001 | TYPE: FIR | DOMAIN: 01_narcotics_trafficking
+Confidential informant reports that Sethji contacted Devendra Solanki alias Bunty regarding a shipment of 50kg illicit narcotics. Bunty coordinated with handler Iliyas Khan near Mumbai port using vehicle MH12AB5678. Call intercept confirms Bunty called Sethji on +91 99870 12345.
+
+###_DOC_START_###
+
+DOC_ID: INT_01_002 | TYPE: CALL_INTERCEPT | DOMAIN: 01_narcotics_trafficking
+Call transcript between Sethji and Iliyas Khan. Sethji instructed Iliyas Khan to arrange payment via hawala channel. Iliyas Khan received payment of Rs 25 Lakhs.
