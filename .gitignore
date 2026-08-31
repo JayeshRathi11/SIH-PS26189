@@ -45,12 +45,12 @@ data/processed/
 
 # Excluded Documentation & Local Markdown per Instructions
 docs/
-Frontend_SIH/**/*.md
-Frontend_SIH/*.md
+frontend/**/*.md
+frontend/*.md
 
 # Temporary & Non-Essential Files
 backend/package-lock.json
-Frontend_SIH/package-lock.json
+frontend/package-lock.json
 scripts/test_phase1_to_5.py
 
 # IDE & OS

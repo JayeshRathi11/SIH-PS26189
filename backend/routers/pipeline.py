@@ -8,7 +8,8 @@ from pipeline.extraction.llm_extractor import LLMExtractor
 from pipeline.normalization.schema_mapper import normalize_relationship
 from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
-from backend.db import get_db, JobRecord, SessionLocal, upsert_resolved_graph
+from backend.db import get_db, JobRecord, SessionLocal, upsert_resolved_graph, User, UserRole
+from backend.routers.auth import require_role
 from pipeline.run_pipeline import run_pipeline_end_to_end
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Execution"])
@@ -66,6 +67,7 @@ def trigger_pipeline(
     background_tasks: BackgroundTasks,
     request_body: Optional[PipelineRunRequest] = None,
     domain: Optional[str] = Query(None, description="Optional domain key to run"),
+    current_user: User = Depends(require_role([UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)
 ):
     target_domain = (request_body.domain if request_body and request_body.domain else domain)

@@ -10,7 +10,12 @@ from backend.db import get_db, User, AuditLog, UserRole, verify_password, hash_p
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "nexustrace_mha_ncrb_super_secret_jwt_key_2026")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY is not set. Add it to your .env file before starting the backend "
+        "(never hardcode a JWT signing secret in source)."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
@@ -70,10 +75,6 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
         headers={"WWW-Authenticate": "Bearer"},
     )
     if not token:
-        # Default fallback to investigator_01 if token is not provided (backwards-compatible)
-        user = db.query(User).filter(User.username == "investigator_01").first()
-        if user:
-            return user
         raise credentials_exception
 
     try:

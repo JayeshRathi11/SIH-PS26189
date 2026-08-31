@@ -56,12 +56,12 @@ def extract_text_from_docx(docx_path: Path) -> str:
 
 def import_and_prepare_dataset():
     """
-    Imports all datasets from DATASET/ into data/raw_text/ and data/ground_truth/
+    Imports all datasets from dataset/ into data/raw_text/ and data/ground_truth/
     for all 10 crime domains.
     """
-    dataset_root = BASE_DIR / "DATASET"
+    dataset_root = BASE_DIR / "dataset"
     
-    # 1. Process each domain in DATASET
+    # 1. Process each domain in dataset
     for folder_name, domain_key in DATASET_MAP.items():
         domain_raw_dir = RAW_TEXT_DIR / domain_key
         domain_raw_dir.mkdir(parents=True, exist_ok=True)
@@ -80,7 +80,7 @@ def import_and_prepare_dataset():
                     if b_clean and "DOC_ID:" in b_clean:
                         docs_text.append(b_clean)
 
-        # Check for folder in DATASET (Domains 3 to 10)
+        # Check for folder in dataset (Domains 3 to 10)
         domain_dir = dataset_root / folder_name
         if domain_dir.exists() and domain_dir.is_dir():
             for md_file in domain_dir.glob("*.md"):

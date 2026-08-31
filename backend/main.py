@@ -5,6 +5,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env before anything else reads them
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db import init_db

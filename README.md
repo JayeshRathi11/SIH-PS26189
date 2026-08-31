@@ -74,7 +74,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ### 5. Start React Frontend
 In a new terminal:
 ```powershell
-cd Frontend_SIH\nexustrace-react
+cd frontend\nexustrace-react
 npm install
 npm run dev
 ```

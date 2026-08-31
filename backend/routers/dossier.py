@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
-from backend.db import get_db, EntityRecord, RelationshipRecord, DocumentMetadata, EvidenceLedgerRecord, User
-from backend.routers.auth import get_current_user
+from backend.db import get_db, EntityRecord, RelationshipRecord, DocumentMetadata, EvidenceLedgerRecord, User, UserRole
+from backend.routers.auth import get_current_user, require_role
 from backend.services.dossier_service import CourtDossierGenerator
 
 router = APIRouter(prefix="/dossier", tags=["Court Dossier Export"])
@@ -17,7 +17,7 @@ class DossierRequest(BaseModel):
 @router.post("/generate")
 def generate_dossier(
     req: DossierRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)
 ):
     """
@@ -92,14 +92,13 @@ def generate_dossier(
     )
 
 @router.get("/download/{entity_id}")
-def download_dossier_by_id(entity_id: str, db: Session = Depends(get_db)):
-    """GET route for browser one-click download of PDF dossier."""
+def download_dossier_by_id(
+    entity_id: str,
+    current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
+    db: Session = Depends(get_db)
+):
+    """GET route for browser one-click download of PDF dossier. Requires an authenticated INVESTIGATOR or OFFICER_IN_CHARGE token."""
     req = DossierRequest(entity_id=entity_id)
-    # Default system user for public download
-    class DummyUser:
-        full_name = "Lead Investigator (Cyber & Special Operations)"
-        username = "investigator_01"
-    
     entity_rec = db.query(EntityRecord).filter(EntityRecord.id == entity_id).first()
     if not entity_rec:
         entity_rec = db.query(EntityRecord).filter(EntityRecord.canonical_name == entity_id).first()
@@ -151,7 +150,7 @@ def download_dossier_by_id(entity_id: str, db: Session = Depends(get_db)):
         entity=entity_dict,
         relationships=rels_list,
         evidence_records=ev_list,
-        officer_name="Lead Investigator (NCRB Special Operations)"
+        officer_name=(current_user.full_name or current_user.username)
     )
 
     filename = f"NexusTrace_Court_Dossier_{entity_rec.canonical_name.replace(' ', '_')}.pdf"
