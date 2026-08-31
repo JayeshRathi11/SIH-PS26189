@@ -22,6 +22,7 @@ class EntityType(str, Enum):
     VEHICLE = "VEHICLE"
     PHONE_NUMBER = "PHONE_NUMBER"
     FINANCIAL_ACCOUNT = "FINANCIAL_ACCOUNT"
+    BANK_ACCOUNT = "BANK_ACCOUNT"
     DOCUMENT_FRONT = "DOCUMENT_FRONT"
 
 # Master Relationship Types (7-type schema)

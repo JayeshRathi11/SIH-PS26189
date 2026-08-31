@@ -43,22 +43,41 @@ def build_graph_and_compute_analytics(entities_dict: Dict[str, Any], relationshi
     # Export CSV and JSON artifacts
     export_processed_graph_files(entities_dict, relationships)
 
+    # Compute Network Analytics
+    entities_list = list(entities_dict.values())
+    analytics = GraphAnalyticsEngine(entities_list, relationships)
+    top_hubs = analytics.get_ranked_key_influencers(top_n=500)
+    hubs_lookup = {h["entity_id"]: h for h in top_hubs}
+
     # Load into Neo4j if available
     neo4j = Neo4jClient()
     if neo4j.connect():
         for cid, meta in entities_dict.items():
-            neo4j.add_entity_node(cid, meta["canonical_name"], meta["type"], list(meta.get("aliases", [])), list(meta.get("domains", [])))
+            h_data = hubs_lookup.get(cid, {})
+            neo4j.add_entity_node(
+                cid,
+                meta["canonical_name"],
+                meta["type"],
+                list(meta.get("aliases", [])),
+                list(meta.get("domains", [])),
+                hub_score=h_data.get("combined_hub_score", 0.05),
+                community_cluster=h_data.get("community_cluster", 0)
+            )
         for r in relationships:
-            neo4j.add_relationship_edge(r["source_id"], r["target_id"], r["relationship_type"], r.get("raw_relationship_type", ""), r.get("domain", ""), r.get("evidence", ""))
+            neo4j.add_relationship_edge(
+                source_id=r["source_id"],
+                target_id=r["target_id"],
+                rel_type=r.get("relationship_type", "ASSOCIATE_OF"),
+                raw_rel_type=r.get("raw_relationship_type", ""),
+                domain=r.get("domain", ""),
+                evidence=r.get("evidence", ""),
+                confidence=float(r.get("confidence", 0.9)),
+                timestamp=r.get("timestamp", "")
+            )
         neo4j.close()
-
-    # Compute Network Analytics
-    entities_list = list(entities_dict.values())
-    analytics = GraphAnalyticsEngine(entities_list, relationships)
-    top_hubs = analytics.get_ranked_key_influencers(top_n=10)
 
     return {
         "total_entities": len(entities_dict),
         "total_relationships": len(relationships),
-        "top_influencers": top_hubs
+        "top_influencers": top_hubs[:10]
     }

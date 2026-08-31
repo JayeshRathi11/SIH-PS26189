@@ -26,39 +26,70 @@ NexusTrace analyzes fragmented, unstructured crime data (FIRs, call intercepts, 
 └── docker-compose.yml          # Container configuration for Neo4j and services
 ```
 
-## Quick Start
+## 📖 Complete Documentation & Operator Guides
 
-### 1. Requirements
-- Python 3.11+
-- Node.js 18+
-- Docker (for Neo4j graph database)
+For comprehensive setup and feature walkthroughs:
+- 🚀 [**`docs/HOW_TO_RUN_AND_USE.md`**](file:///c:/Users/luuff/Desktop/SIH/docs/HOW_TO_RUN_AND_USE.md) — **Complete User, Operator & Setup Guide** (Step-by-step for Docker & Non-Docker setups, `.env` keys, starting all 3 servers, and full UI usage guide).
+- 📊 [**`docs/CURRENT_STATUS.md`**](file:///c:/Users/luuff/Desktop/SIH/docs/CURRENT_STATUS.md) — **Master Current Status & Architectural Reference** (9 FastAPI routers, 8 database tables, POLE schema, pattern detection algorithms).
 
-### 2. Setup Environment & Pipeline
-```bash
-# Set up Python virtual environment (optional)
+---
+
+## Quick Start (3-Minute Setup)
+
+### 1. Configure Environment (`.env`)
+Create `.env` in the root folder:
+```ini
+GEMINI_API_KEY=your_gemini_api_key_here
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+DATABASE_URL=sqlite:///./nexustrace.db
+JWT_SECRET_KEY=nexustrace_mha_ncrb_super_secret_jwt_key_2026
+DATA_DIR=./data
+PROCESSED_DIR=./data/processed
+```
+
+### 2. Start Neo4j (Docker OR Local)
+- **With Docker:** `docker-compose up -d neo4j`
+- **Without Docker:** Start [Neo4j Desktop](https://neo4j.com/download/) OR use free [Neo4j AuraDB](https://neo4j.com/cloud/platform/aura-graph-database/) OR run in standalone SQLite mode.
+
+### 3. Run Pipeline (One-Time Ingestion)
+```powershell
 python -m venv venv
-# On Windows: venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
+pip install -r pipeline/requirements.txt
+pip install -r backend/requirements.txt
 
-# Install pipeline dependencies
-cd pipeline
-pip install -r requirements.txt
-
-# Run pipeline on domain data
-python run_pipeline.py --all
+python pipeline/run_pipeline.py
 ```
 
-### 3. Run Backend API
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+### 4. Start Backend Service
+```powershell
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
+- REST API & Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 4. Run Frontend Dashboard
-```bash
-cd frontend
+### 5. Start React Frontend
+In a new terminal:
+```powershell
+cd Frontend_SIH\nexustrace-react
 npm install
 npm run dev
 ```
+- Investigator Dashboard: [http://localhost:5173/](http://localhost:5173/)
 
-License: Open Source / SIH 2026.
+---
+
+## Default RBAC Officer Accounts
+
+| Role | Username | Password |
+|---|---|---|
+| **INVESTIGATOR** | `investigator_01` | `Investigate#2026` |
+| **OFFICER_IN_CHARGE** | `ncrb_admin` | `Admin#MHA2026` |
+| **AUDITOR** | `judicial_auditor` | `Audit#Secure2026` |
+
+---
+
+License: Open Source / SIH 2026 / MHA & NCRB Compliant.

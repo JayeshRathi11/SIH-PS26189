@@ -1,8 +1,14 @@
+import sys
+from pathlib import Path
+
+# Add project root directory to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db import init_db
-from backend.routers import graph, entities, documents, pipeline, evaluation
+from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier
 
 app = FastAPI(
     title="NexusTrace API",
@@ -19,15 +25,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize SQLite tables
-@app.on_event("startup")
-def startup_event():
-    init_db()
+# Initialize SQLite tables, column migrations & default users
+init_db()
 
 # Include API Routers
+app.include_router(auth.router)
 app.include_router(graph.router)
 app.include_router(entities.router)
 app.include_router(documents.router)
+app.include_router(patterns.router)
+app.include_router(feedback.router)
+app.include_router(dossier.router)
 app.include_router(pipeline.router)
 app.include_router(evaluation.router)
 

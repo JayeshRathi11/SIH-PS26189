@@ -1,0 +1,180 @@
+{
+  "entities": [
+    {
+      "canonical_id": "ENT_001",
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the controller", "an unidentified number", "caller identified through voice verification"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A8", "B1", "B2", "B4", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_002",
+      "canonical_name": "Deepak Malhotra",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Bookie", "Malhotra", "the local bookmaker"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "B1", "B2", "B4", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_003",
+      "canonical_name": "Rizwan Ali",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Ali", "the hawala operator"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A6", "A8", "B1", "B2", "B4", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_004",
+      "canonical_name": "Unnamed college-student punter",
+      "type": "PERSON",
+      "aliases_and_mentions": ["a college student in the locality"],
+      "is_core_network": false,
+      "appears_in_docs": ["A3"]
+    },
+    {
+      "canonical_id": "ENT_005",
+      "canonical_name": "Unidentified wrong-number caller (unrelated match discussion)",
+      "type": "PERSON",
+      "aliases_and_mentions": ["caller asking about an unrelated cricket match discussion", "unidentified caller asking about an unrelated local match result"],
+      "is_core_network": false,
+      "appears_in_docs": ["A7", "B3"]
+    },
+    {
+      "canonical_id": "ENT_006",
+      "canonical_name": "PS Rasta Peth",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["the thana"],
+      "is_core_network": false,
+      "appears_in_docs": ["A1", "A4", "A8", "B1", "B4", "B8"]
+    },
+    {
+      "canonical_id": "ENT_007",
+      "canonical_name": "Shop back room (joint meeting site)",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a shop back room"],
+      "is_core_network": true,
+      "appears_in_docs": ["B4"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 21:30 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari, voice-verified for the first time, spoke to Malhotra about the week's collection before addressing Ali on the same call."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 21:30 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari instructed Ali, patched onto the same call as Malhotra, to settle the hisaab through the usual route."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "SETTLED_PAYMENT_VIA_HAWALA",
+      "location": null,
+      "temporal_expression": "approximately 18:50 hrs",
+      "doc_evidence": ["A6"],
+      "description": "Malhotra and Ali spoke directly to confirm the previous week's amount had been settled, with no controller involvement."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 20:05 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari spoke to Malhotra about a figure discrepancy before addressing Ali on the same call."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 20:05 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari instructed Ali to adjust the hisaab to account for a discrepancy, on the same call as Malhotra."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": "ENT_007",
+      "temporal_expression": "not specified (field-observed meeting)",
+      "doc_evidence": ["B4"],
+      "description": "A field team observed Ansari speaking directly with Malhotra and Ali together at a shop back room."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "MET",
+      "location": "ENT_007",
+      "temporal_expression": "not specified (field-observed meeting)",
+      "doc_evidence": ["B4"],
+      "description": "The same field-observed meeting recorded Ansari addressing Ali together with Malhotra at the shop back room."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "SETTLED_PAYMENT_VIA_HAWALA",
+      "location": null,
+      "temporal_expression": "approximately 19:20 hrs",
+      "doc_evidence": ["B5"],
+      "description": "Malhotra confirmed to Ali directly that an adjusted figure had been settled, with no controller involvement on this call."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 22:00 hrs",
+      "doc_evidence": ["B6"],
+      "description": "Ansari spoke to Malhotra briefly before addressing Ali on the same call regarding the coming week's cycle."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 22:00 hrs",
+      "doc_evidence": ["B6"],
+      "description": "Ansari instructed Ali, patched onto the same call as Malhotra, to keep the collection-and-settlement pattern unchanged."
+    }
+  ],
+  "timeline": [
+    {"doc_id": "A2", "relative_day_offset": 0, "time_of_day": "approximately 20:15 hrs", "event_summary": "An intercepted call showed Malhotra reporting a collection figure to an unidentified, not-yet-matched contact."},
+    {"doc_id": "A3", "relative_day_offset": 0, "time_of_day": null, "event_summary": "An informant assessed a college-student punter placing small personal bets as unconnected to the syndicate."},
+    {"doc_id": "A1", "relative_day_offset": 1, "time_of_day": "approximately 19:00 hrs", "event_summary": "An FIR was registered describing an illegal betting book run by Malhotra with proceeds moved through Ali's hawala route under an unnamed controller."},
+    {"doc_id": "A6", "relative_day_offset": 1, "time_of_day": "approximately 18:50 hrs", "event_summary": "An intercepted call showed Malhotra and Ali confirming a settlement directly, with no controller involvement."},
+    {"doc_id": "A5", "relative_day_offset": 2, "time_of_day": "approximately 21:30 hrs", "event_summary": "An intercepted call positively voice-matched the controller as Iqbal Ansari, who addressed both Malhotra and Ali within the same call."},
+    {"doc_id": "A4", "relative_day_offset": 3, "time_of_day": "approximately 13:40 hrs", "event_summary": "A follow-up FIR recorded continued collection and settlement activity consistent with informant input."},
+    {"doc_id": "A7", "relative_day_offset": 3, "time_of_day": null, "event_summary": "An informant flagged an incidental wrong-number call and noted a modest expansion in Malhotra's collection network."},
+    {"doc_id": "A8", "relative_day_offset": 4, "time_of_day": "approximately 11:20 hrs", "event_summary": "A follow-up FIR recorded the voice-verified identification of the controller as Iqbal Ansari, who remained unlocated."},
+    {"doc_id": "B1", "relative_day_offset": 5, "time_of_day": "approximately 10:40 hrs", "event_summary": "A follow-up FIR recorded independent informant corroboration of the controller's identity as Iqbal Ansari."},
+    {"doc_id": "B2", "relative_day_offset": 5, "time_of_day": "approximately 20:05 hrs", "event_summary": "An intercepted call showed Ansari addressing both Malhotra and Ali about a figure discrepancy within the same call."},
+    {"doc_id": "B3", "relative_day_offset": 5, "time_of_day": null, "event_summary": "An informant flagged an incidental call about an unrelated match result as unconnected to the investigation."},
+    {"doc_id": "B4", "relative_day_offset": 6, "time_of_day": null, "event_summary": "A field team directly observed Ansari meeting both Malhotra and Ali together at a shop back room for the first time."},
+    {"doc_id": "B5", "relative_day_offset": 6, "time_of_day": "approximately 19:20 hrs", "event_summary": "An intercepted call showed Malhotra and Ali confirming a settlement directly, with no controller involvement."},
+    {"doc_id": "B6", "relative_day_offset": 6, "time_of_day": "approximately 22:00 hrs", "event_summary": "An intercepted call showed Ansari addressing both Malhotra and Ali about the coming week's collection cycle."},
+    {"doc_id": "B7", "relative_day_offset": 7, "time_of_day": null, "event_summary": "An informant reported continued stable activity by Malhotra and Ali, with Ansari not seen in person recently."},
+    {"doc_id": "B8", "relative_day_offset": 8, "time_of_day": "approximately 09:35 hrs", "event_summary": "Malhotra and Ali were apprehended in a coordinated action, leaving Ansari as the sole network figure still at large."}
+  ],
+  "hub_bridging_docs": ["A5", "B2", "B4", "B6"],
+  "indirect_link_docs": ["A6", "B5"],
+  "red_herrings": [
+    {"mention": "a college student in the locality", "doc_id": "A3", "reason_excluded": "Assessed as an ordinary punter placing small personal bets, with no connection to the collection or settlement side of the operation."},
+    {"mention": "caller asking about an unrelated cricket match discussion", "doc_id": "A7", "reason_excluded": "Assessed as an incidental wrong-number contact unconnected to the betting or hawala operation."},
+    {"mention": "unidentified caller asking about an unrelated local match result", "doc_id": "B3", "reason_excluded": "Caller's number does not match any flagged contact; assessed as incidental and unconnected to the investigation."}
+  ],
+  "cross_document_inconsistencies": [
+    {"topic": "Differing settlement-amount figure across a settlement cycle", "doc_ids": ["A2", "A6"], "description": "A2 records Malhotra describing the day's collection as lower than usual, while A6, on the same general cycle, shows Ali referencing a slightly differing figure attributed to a delay on his end; treated as a minor, explained discrepancy rather than a true contradiction."}
+  ]
+}

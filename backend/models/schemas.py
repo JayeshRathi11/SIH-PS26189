@@ -45,6 +45,10 @@ class DocumentResponse(BaseModel):
     text: str
     source_file: Optional[str] = ""
 
+class PipelineRunRequest(BaseModel):
+    raw_text: Optional[str] = Field(None, description="Raw text document input for live extraction")
+    domain: Optional[str] = Field(None, description="Target domain key")
+
 class PipelineJobResponse(BaseModel):
     job_id: str
     domain: Optional[str]

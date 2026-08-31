@@ -1,0 +1,236 @@
+{
+  "entities": [
+    {
+      "canonical_id": "ENT_001",
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the negotiator", "the man", "Iqbal Ansari", "the caller", "the individual already identified by name"],
+      "is_core_network": true,
+      "appears_in_docs": ["A2", "A4", "A7", "A8", "B4", "B5", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_002",
+      "canonical_name": "Sunil Yadav",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Sunil Yadav", "Yadav", "the driver"],
+      "is_core_network": true,
+      "appears_in_docs": ["A4", "A6", "A7", "A8", "B2", "B4", "B5", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_003",
+      "canonical_name": "Ajay Bhonsle",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Ajay Bhonsle", "Bhonsle"],
+      "is_core_network": true,
+      "appears_in_docs": ["A3", "A4", "A6", "A7", "A8", "B2", "B4", "B5"]
+    },
+    {
+      "canonical_id": "ENT_004",
+      "canonical_name": "UP32XY9988",
+      "type": "VEHICLE",
+      "aliases_and_mentions": ["UP32XY9988", "the vehicle"],
+      "is_core_network": true,
+      "appears_in_docs": ["A3", "B1", "B7"]
+    },
+    {
+      "canonical_id": "ENT_005",
+      "canonical_name": "+91 99870 XXXXX",
+      "type": "PHONE_NUMBER",
+      "aliases_and_mentions": ["+91 99870 XXXXX"],
+      "is_core_network": true,
+      "appears_in_docs": ["A8", "B8"]
+    },
+    {
+      "canonical_id": "ENT_006",
+      "canonical_name": "unrelated missing-person report (A5)",
+      "type": "PERSON",
+      "aliases_and_mentions": ["a person believed... to be potentially connected"],
+      "is_core_network": false,
+      "appears_in_docs": ["A5"]
+    },
+    {
+      "canonical_id": "ENT_007",
+      "canonical_name": "unrelated surveilled individual (B6)",
+      "type": "PERSON",
+      "aliases_and_mentions": ["individual under observation... initially considered of possible interest"],
+      "is_core_network": false,
+      "appears_in_docs": ["B6"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "21:15 hrs approx",
+      "doc_evidence": ["A4"],
+      "description": "A caller believed to be the negotiator instructed Yadav to keep the vehicle ready."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 21:30 hrs",
+      "doc_evidence": ["A4"],
+      "description": "The same caller instructed Bhonsle to check the usual drop-point spot, shortly after calling Yadav."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "MET",
+      "location": null,
+      "temporal_expression": "approximately nine minutes, 0135 hrs onward",
+      "doc_evidence": ["A6"],
+      "description": "Yadav and Bhonsle observed meeting directly at a suspected hideout, with no negotiator present in this document."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "23:05 hrs approx",
+      "doc_evidence": ["A8"],
+      "description": "The number +91 99870 XXXXX called Yadav instructing him to have the vehicle ready by early morning."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "roughly eight minutes later",
+      "doc_evidence": ["A8"],
+      "description": "The same number called Bhonsle shortly after, asking about the family's status."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_005",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["A8", "B8"],
+      "description": "The phone number +91 99870 XXXXX is associated with the negotiator/Iqbal Ansari across both intercepted calls."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": null,
+      "temporal_expression": "20:10 hrs approx",
+      "doc_evidence": ["B2"],
+      "description": "Bhonsle and Yadav coordinate directly by phone about vehicle movement, without the negotiator appearing."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_004",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["A3", "B1", "B7"],
+      "description": "Vehicle UP32XY9988 is associated with the field operatives' logistics, observed near drop points and ultimately recovered with Yadav at his apprehension."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "19:45 hrs approx",
+      "doc_evidence": ["B4"],
+      "description": "The negotiator instructed Yadav to bring the vehicle round one final time."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 19:58 hrs",
+      "doc_evidence": ["B4"],
+      "description": "The same caller instructed Bhonsle to confirm the family's readiness and step back."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B5"],
+      "description": "Telephonic records confirm Iqbal Ansari's direct contact with Yadav in the period immediately preceding recovery."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B5"],
+      "description": "Telephonic records confirm Iqbal Ansari's direct contact with Bhonsle in the same period."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_001",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B7"],
+      "description": "Yadav, upon arrest, states instructions originated from the individual already named in earlier proceedings."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_001",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B7"],
+      "description": "Bhonsle, upon arrest, independently corroborates the same instructions originating from the same individual."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "22:15 hrs approx",
+      "doc_evidence": ["B8"],
+      "description": "The negotiator's number attempted to call Yadav twice; both attempts went unanswered following Yadav's apprehension."
+    }
+  ],
+  "timeline": [
+    {"doc_id": "A1", "relative_day_offset": 0, "time_of_day": "approximately 20:30 hrs", "event_summary": "Individual reported missing; family lodges missing-person report the following morning."},
+    {"doc_id": "A2", "relative_day_offset": 0, "time_of_day": "22:40 hrs approx", "event_summary": "First ransom call received by family; caller confirms individual is safe for now."},
+    {"doc_id": "A3", "relative_day_offset": 1, "time_of_day": "0410 hrs onward", "event_summary": "Surveillance at a suspected drop point observes Bhonsle and vehicle UP32XY9988, no exchange confirmed."},
+    {"doc_id": "A4", "relative_day_offset": 1, "time_of_day": "21:15 hrs approx", "event_summary": "First hub-bridging intercept: the negotiator instructs both Yadav and Bhonsle in close succession."},
+    {"doc_id": "A5", "relative_day_offset": 2, "time_of_day": null, "event_summary": "Separate missing-person report initially suspected of connection, later confirmed unrelated and closed."},
+    {"doc_id": "A6", "relative_day_offset": 2, "time_of_day": "0135 hrs onward", "event_summary": "Surveillance observes Yadav and Bhonsle meeting directly at a suspected hideout without the negotiator present."},
+    {"doc_id": "A7", "relative_day_offset": 3, "time_of_day": null, "event_summary": "The negotiator identified by real name as Iqbal Ansari, understood to direct both Yadav and Bhonsle."},
+    {"doc_id": "A8", "relative_day_offset": 3, "time_of_day": "23:05 hrs approx", "event_summary": "Second hub-bridging intercept: the negotiator's number instructs both Yadav and Bhonsle."},
+    {"doc_id": "B1", "relative_day_offset": 4, "time_of_day": "0355 hrs onward", "event_summary": "Vehicle UP32XY9988 observed passing a junction twice within a short window without stopping."},
+    {"doc_id": "B2", "relative_day_offset": 4, "time_of_day": "20:10 hrs approx", "event_summary": "Second indirect-link intercept: Bhonsle and Yadav coordinate vehicle movement directly without the negotiator."},
+    {"doc_id": "B3", "relative_day_offset": 5, "time_of_day": null, "event_summary": "Operation conducted; individual reported missing located and recovered unharmed."},
+    {"doc_id": "B4", "relative_day_offset": 5, "time_of_day": "19:45 hrs approx", "event_summary": "Third hub-bridging intercept: the negotiator instructs both Yadav and Bhonsle shortly before the recovery operation."},
+    {"doc_id": "B5", "relative_day_offset": 6, "time_of_day": null, "event_summary": "Iqbal Ansari's role further corroborated through telephonic records confirming contact with both field operatives."},
+    {"doc_id": "B6", "relative_day_offset": 6, "time_of_day": "0620 hrs onward", "event_summary": "Surveillance of an initially-suspected individual finds only routine activity; removed from monitoring list."},
+    {"doc_id": "B7", "relative_day_offset": 7, "time_of_day": null, "event_summary": "Fourth hub-bridging confirmation: Yadav and Bhonsle arrested, both independently naming Iqbal Ansari."},
+    {"doc_id": "B8", "relative_day_offset": 7, "time_of_day": "22:15 hrs approx", "event_summary": "The negotiator's number attempts to call Yadav twice after his apprehension; both calls go unanswered."}
+  ],
+  "hub_bridging_docs": ["A4", "A8", "B4", "B7"],
+  "indirect_link_docs": ["A6", "B2"],
+  "red_herrings": [
+    {
+      "mention": "a person believed... to be potentially connected to the abduction... owing to certain superficial similarities",
+      "doc_id": "A5",
+      "reason_excluded": "Verified through independent means to be staying with relatives in a neighbouring district for unrelated personal reasons; explicitly closed as unconnected to the core network."
+    },
+    {
+      "mention": "individual under observation... initially considered of possible interest owing to circumstances broadly resembling those described in an earlier, separate matter",
+      "doc_id": "B6",
+      "reason_excluded": "Observed engaging only in routine daily activity with no contact with any core-network individual; explicitly recommended for removal from the monitoring list."
+    }
+  ],
+  "cross_document_inconsistencies": [
+    {
+      "topic": "Precise ransom amount",
+      "doc_ids": ["B3"],
+      "description": "The amount demanded is described only as a rounded figure in the range of several lakh rupees, with this office explicitly declining to record a precise figure pending further verification, consistent with the dataset-wide constraint against fabricating a specific demand amount."
+    }
+  ]
+}

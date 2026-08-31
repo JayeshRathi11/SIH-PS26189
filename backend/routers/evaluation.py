@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict
+from typing import List
 from pipeline.config import DOMAINS
 from pipeline.evaluation.score_against_ground_truth import evaluate_domain
 from backend.models.schemas import EvaluationScoreResponse

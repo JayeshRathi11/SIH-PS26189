@@ -1,5 +1,6 @@
 # Node.js
 node_modules/
+**/node_modules/
 dist/
 npm-debug.log*
 yarn-debug.log*
@@ -7,6 +8,7 @@ yarn-error.log*
 
 # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -29,15 +31,27 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
 
 # Database & Processed Data
 *.db
 nexustrace.db
 data/processed/
 
-# Environment variables
+# Environment Variables
 .env
-.env.local
+.env.*
+!.env.example
+
+# Excluded Documentation & Local Markdown per Instructions
+docs/
+Frontend_SIH/**/*.md
+Frontend_SIH/*.md
+
+# Temporary & Non-Essential Files
+backend/package-lock.json
+Frontend_SIH/package-lock.json
+scripts/test_phase1_to_5.py
 
 # IDE & OS
 .vscode/

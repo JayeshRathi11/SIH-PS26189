@@ -1,3 +1,11 @@
 source_entity,source_type,relationship_type,target_entity,target_type,domain,phone_number,confidence
 Sethji,PERSON,INSTRUCTED,Devendra Solanki,PERSON,01_narcotics_trafficking,+91 99870 12345,0.95
+the contact,PERSON,LEADS_ORGANIZATION,Sunrise Placement Services,ORGANIZATION,02_human_trafficking,+91 99870 12345,0.92
+the director,PERSON,FINANCIAL_TRANSACTION_WITH,IA Digital Ventures Pvt Ltd,ORGANIZATION,03_cyber_financial_fraud,+91 99870 12345,0.94
+the financier,PERSON,INSTRUCTED,Harjeet Singh,PERSON,04_arms_smuggling,+91 99870 12345,0.93
 Bhai,PERSON,CALLED,Rakesh Pawar,PERSON,05_organized_extortion,+91 99870 12345,0.98
+the negotiator,PERSON,INSTRUCTED,Sunil Yadav,PERSON,06_kidnapping_for_ransom,+91 99870 12345,0.91
+the source contact,PERSON,ASSOCIATE_OF,Chopra Fuel & Service Station,ORGANIZATION,07_counterfeit_currency,+91 99870 12345,0.9
+the controller,PERSON,FINANCIAL_TRANSACTION_WITH,Rizwan Ali,PERSON,08_illegal_betting_hawala,+91 99870 12345,0.96
+the buyer,PERSON,OWNS_VEHICLE,KA05MN4321,VEHICLE,09_vehicle_theft_ring,+91 99870 12345,0.92
+the fixer,PERSON,LEADS_ORGANIZATION,Shreeji Construction & Developers,ORGANIZATION,10_land_grabbing_fraud,+91 99870 12345,0.95

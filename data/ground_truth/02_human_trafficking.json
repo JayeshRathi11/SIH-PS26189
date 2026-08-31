@@ -1,0 +1,64 @@
+{
+  "entities": [
+    {
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "the contact",
+        "I.A.",
+        "Iqbal Ansari"
+      ]
+    },
+    {
+      "canonical_name": "Manoj Tiwari",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "Manoj Tiwari",
+        "Tiwari"
+      ]
+    },
+    {
+      "canonical_name": "Rina Das",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "Rina Das"
+      ]
+    },
+    {
+      "canonical_name": "Sunrise Placement Services",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": [
+        "Sunrise Placement Services"
+      ]
+    },
+    {
+      "canonical_name": "+91 99870 12345",
+      "type": "PHONE_NUMBER",
+      "aliases_and_mentions": [
+        "+91 99870 12345"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Iqbal Ansari",
+      "to": "Sunrise Placement Services",
+      "type": "LEADS_ORGANIZATION"
+    },
+    {
+      "from": "Manoj Tiwari",
+      "to": "Sunrise Placement Services",
+      "type": "MEMBERSHIP_OF"
+    },
+    {
+      "from": "Rina Das",
+      "to": "Sunrise Placement Services",
+      "type": "MEMBERSHIP_OF"
+    },
+    {
+      "from": "Manoj Tiwari",
+      "to": "Iqbal Ansari",
+      "type": "CALLED"
+    }
+  ]
+}

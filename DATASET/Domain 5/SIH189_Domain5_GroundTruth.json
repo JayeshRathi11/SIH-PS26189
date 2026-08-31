@@ -1,0 +1,365 @@
+{
+  "entities": [
+    {
+      "canonical_id": "ENT_001",
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Bhai", "the man", "him", "the man who runs all this", "Iqbal Ansari", "the individual named in earlier proceedings"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A3", "A4", "A6", "A8", "A9", "A10", "B2", "B5", "B9", "B10"]
+    },
+    {
+      "canonical_id": "ENT_002",
+      "canonical_name": "Rakesh Pawar",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Rakesh Pawar", "Rocky", "Pawar", "the accused"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A3", "A4", "A6", "A7", "A9", "A10", "B1", "B2", "B3", "B5", "B6", "B9", "B10"]
+    },
+    {
+      "canonical_id": "ENT_003",
+      "canonical_name": "Salim Sheikh",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Salim Sheikh", "Sheikh"],
+      "is_core_network": true,
+      "appears_in_docs": ["A2", "A3", "A6", "A7", "A8", "A9", "A10", "B2", "B5", "B6", "B9"]
+    },
+    {
+      "canonical_id": "ENT_004",
+      "canonical_name": "Sharma Hardware Store",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["Sharma Hardware Store"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A10"]
+    },
+    {
+      "canonical_id": "ENT_005",
+      "canonical_name": "Metro Mobile Repair",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["Metro Mobile Repair", "the mobile shop fellow"],
+      "is_core_network": true,
+      "appears_in_docs": ["A2", "A3", "A10"]
+    },
+    {
+      "canonical_id": "ENT_006",
+      "canonical_name": "Anand Sweets",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["Anand Sweets", "the sweet shop"],
+      "is_core_network": true,
+      "appears_in_docs": ["A4", "A10"]
+    },
+    {
+      "canonical_id": "ENT_007",
+      "canonical_name": "Fashion Point Garments",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["Fashion Point Garments", "the garment shop"],
+      "is_core_network": true,
+      "appears_in_docs": ["A7", "A8", "A10", "B2"]
+    },
+    {
+      "canonical_id": "ENT_008",
+      "canonical_name": "Bright Electricals",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["Bright Electricals", "the electricals fellow"],
+      "is_core_network": true,
+      "appears_in_docs": ["B1", "B2"]
+    },
+    {
+      "canonical_id": "ENT_009",
+      "canonical_name": "MH04XY2345",
+      "type": "VEHICLE",
+      "aliases_and_mentions": ["MH04XY2345", "the vehicle"],
+      "is_core_network": true,
+      "appears_in_docs": ["A4", "B3"]
+    },
+    {
+      "canonical_id": "ENT_010",
+      "canonical_name": "account ending 7743",
+      "type": "BANK_ACCOUNT",
+      "aliases_and_mentions": ["an account ending 7743", "the account"],
+      "is_core_network": true,
+      "appears_in_docs": ["B1", "B7"]
+    },
+    {
+      "canonical_id": "ENT_011",
+      "canonical_name": "+91 99870 XXXXX",
+      "type": "PHONE_NUMBER",
+      "aliases_and_mentions": ["+91 99870 XXXXX"],
+      "is_core_network": true,
+      "appears_in_docs": ["A10", "B10"]
+    },
+    {
+      "canonical_id": "ENT_012",
+      "canonical_name": "unrelated stationery-stall owner",
+      "type": "PERSON",
+      "aliases_and_mentions": ["an unrelated shopkeeper... runs a stationery stall two lanes over"],
+      "is_core_network": false,
+      "appears_in_docs": ["A5"]
+    },
+    {
+      "canonical_id": "ENT_013",
+      "canonical_name": "unrelated wrong-number caller",
+      "type": "PERSON",
+      "aliases_and_mentions": ["an unfamiliar number asking about an entirely unrelated matter concerning a vehicle repair"],
+      "is_core_network": false,
+      "appears_in_docs": ["B4"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ENT_002",
+      "to": "ENT_004",
+      "type": "RECEIVED_PAYMENT",
+      "location": "ENT_004",
+      "temporal_expression": "roughly weekly basis",
+      "doc_evidence": ["A1"],
+      "description": "Pawar collects periodic payment from the Sharma Hardware Store complainant."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_005",
+      "type": "RECEIVED_PAYMENT",
+      "location": "ENT_005",
+      "temporal_expression": "irregular but recurring intervals",
+      "doc_evidence": ["A2"],
+      "description": "Sheikh collects periodic payment, at times via digital transfer, from the Metro Mobile Repair complainant."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "19:15 hrs approx",
+      "doc_evidence": ["A3"],
+      "description": "The number believed to be Bhai's instructed Pawar regarding collections."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 19:40 hrs",
+      "doc_evidence": ["A3"],
+      "description": "The same number instructed Sheikh to collect from the mobile-repair shop, shortly after instructing Pawar."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_006",
+      "type": "RECEIVED_PAYMENT",
+      "location": "ENT_006",
+      "temporal_expression": "visit to visit",
+      "doc_evidence": ["A4"],
+      "description": "Pawar collects periodic payment from the Anand Sweets complainant, using vehicle MH04XY2345."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_009",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["A4"],
+      "description": "Pawar's collection round is associated with vehicle MH04XY2345, observed outside Anand Sweets."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "MET",
+      "location": null,
+      "temporal_expression": "14:20 hrs approx",
+      "doc_evidence": ["A7"],
+      "description": "Pawar and Sheikh coordinate directly by phone about collection status, without Bhai appearing in this document."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_007",
+      "type": "RECEIVED_PAYMENT",
+      "location": "ENT_007",
+      "temporal_expression": "intervals of roughly two to three weeks",
+      "doc_evidence": ["A8"],
+      "description": "Sheikh collects periodic payment from the Fashion Point Garments complainant."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "20:05 hrs approx",
+      "doc_evidence": ["A10"],
+      "description": "The number +91 99870 XXXXX called Pawar, referencing the sweet shop and hardware shop specifically."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "approximately 20:18 hrs",
+      "doc_evidence": ["A10"],
+      "description": "The same number called Sheikh shortly after, referencing the garment shop and mobile shop specifically."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_011",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["A10", "B10"],
+      "description": "The phone number +91 99870 XXXXX is associated with Bhai/Iqbal Ansari across both intercepted calls."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_008",
+      "type": "RECEIVED_PAYMENT",
+      "location": "ENT_008",
+      "temporal_expression": "recurring basis",
+      "doc_evidence": ["B1"],
+      "description": "Pawar collects periodic payment from the Bright Electricals complainant, later via account ending 7743."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_010",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B1"],
+      "description": "Pawar instructed the Bright Electricals complainant to pay into account ending 7743."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "18:50 hrs approx",
+      "doc_evidence": ["B2"],
+      "description": "Bhai's number instructed Pawar regarding the Bright Electricals account arrangement."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 19:05 hrs",
+      "doc_evidence": ["B2"],
+      "description": "The same number instructed Sheikh regarding the Fashion Point Garments collection, shortly after Pawar."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_009",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": "approximately 16:20 hrs",
+      "doc_evidence": ["B3"],
+      "description": "Vehicle MH04XY2345 observed on a second occasion, driven by an associate of Pawar, near a cluster of shops."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "not specified beyond ongoing investigation",
+      "doc_evidence": ["B5"],
+      "description": "Iqbal Ansari confirmed to be in direct telephonic contact with Pawar regarding specific shopkeepers."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "not specified beyond ongoing investigation",
+      "doc_evidence": ["B5"],
+      "description": "Iqbal Ansari confirmed to be in direct telephonic contact with Sheikh regarding specific shopkeepers."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "MET",
+      "location": null,
+      "temporal_expression": "15:30 hrs approx",
+      "doc_evidence": ["B6"],
+      "description": "Sheikh and Pawar discuss the investigation directly, without Bhai appearing in this document."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_010",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": "approximately 13:40 hrs",
+      "doc_evidence": ["B7"],
+      "description": "A second, independent complainant confirms payment into account ending 7743."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_001",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B9"],
+      "description": "Pawar, upon arrest, states instructions originated from the individual already named in earlier proceedings."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_001",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": null,
+      "doc_evidence": ["B9"],
+      "description": "Sheikh, upon arrest, independently corroborates the same instructions originating from the same individual."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "CALLED",
+      "location": null,
+      "temporal_expression": "21:10 hrs approx",
+      "doc_evidence": ["B10"],
+      "description": "Bhai's number attempted to call Pawar twice; both attempts went unanswered."
+    }
+  ],
+  "timeline": [
+    {"doc_id": "A1", "relative_day_offset": 0, "time_of_day": null, "event_summary": "Sharma Hardware Store complaint recorded; Pawar identified as collector, Bhai referenced vaguely."},
+    {"doc_id": "A2", "relative_day_offset": 1, "time_of_day": "approximately 18:30 hrs", "event_summary": "Metro Mobile Repair complaint recorded; Sheikh identified as collector, digital-account payment mentioned."},
+    {"doc_id": "A5", "relative_day_offset": 1, "time_of_day": null, "event_summary": "Informant mentions unrelated stationery-stall owner and notes similar weekly collection rhythm across both areas."},
+    {"doc_id": "A3", "relative_day_offset": 2, "time_of_day": "19:15 hrs approx", "event_summary": "First intercepted hub-bridging calls: Bhai's number instructs both Pawar and Sheikh in close succession."},
+    {"doc_id": "A4", "relative_day_offset": 2, "time_of_day": null, "event_summary": "Anand Sweets complaint recorded; vehicle MH04XY2345 first noted."},
+    {"doc_id": "A7", "relative_day_offset": 3, "time_of_day": "14:20 hrs approx", "event_summary": "First intercepted indirect-link call: Pawar and Sheikh coordinate directly without Bhai."},
+    {"doc_id": "A6", "relative_day_offset": 3, "time_of_day": null, "event_summary": "Bhai identified by real name as Iqbal Ansari, understood to coordinate both Pawar and Sheikh."},
+    {"doc_id": "A8", "relative_day_offset": 4, "time_of_day": null, "event_summary": "Fashion Point Garments complaint recorded; Sheikh identified as collector."},
+    {"doc_id": "A9", "relative_day_offset": 4, "time_of_day": null, "event_summary": "Informant reports rumor that Bhai personally checks in on both collection areas more than realized."},
+    {"doc_id": "A10", "relative_day_offset": 5, "time_of_day": "20:05 hrs approx", "event_summary": "Second hub-bridging intercept: Bhai's number references specific shops tied to both collectors."},
+    {"doc_id": "B1", "relative_day_offset": 5, "time_of_day": null, "event_summary": "Bright Electricals complaint recorded; account ending 7743 first referenced as digital collection route."},
+    {"doc_id": "B2", "relative_day_offset": 6, "time_of_day": "18:50 hrs approx", "event_summary": "Third hub-bridging intercept: Bhai's number instructs both Pawar and Sheikh regarding specific shops."},
+    {"doc_id": "B4", "relative_day_offset": 6, "time_of_day": null, "event_summary": "Informant reports an unrelated wrong-number call, confirmed unconnected to the network."},
+    {"doc_id": "B3", "relative_day_offset": 6, "time_of_day": "approximately 16:20 hrs", "event_summary": "Vehicle MH04XY2345 observed a second time near a cluster of affected shops."},
+    {"doc_id": "B5", "relative_day_offset": 7, "time_of_day": "approximately 19:00 hrs", "event_summary": "Investigation corroborates Iqbal Ansari's direct contact with both collectors on more than one occasion."},
+    {"doc_id": "B6", "relative_day_offset": 7, "time_of_day": "15:30 hrs approx", "event_summary": "Second indirect-link intercept: Sheikh and Pawar discuss the ongoing investigation without Bhai."},
+    {"doc_id": "B7", "relative_day_offset": 8, "time_of_day": "approximately 13:40 hrs", "event_summary": "Second independent complainant confirms payment into account ending 7743."},
+    {"doc_id": "B8", "relative_day_offset": 8, "time_of_day": null, "event_summary": "Informant reports shifting mood among shopkeepers considering a joint complaint."},
+    {"doc_id": "B9", "relative_day_offset": 9, "time_of_day": "approximately 09:30-10:15 hrs", "event_summary": "Fourth hub-bridging confirmation: Pawar and Sheikh arrested, both independently naming Iqbal Ansari as the source of instructions."},
+    {"doc_id": "B10", "relative_day_offset": 9, "time_of_day": "21:10 hrs approx", "event_summary": "Bhai's number attempts to call Pawar twice; both calls go unanswered."}
+  ],
+  "hub_bridging_docs": ["A3", "A10", "B2", "B9"],
+  "indirect_link_docs": ["A7", "B6"],
+  "red_herrings": [
+    {
+      "mention": "an unrelated shopkeeper, runs a stationery stall two lanes over... nothing to do with this lot",
+      "doc_id": "A5",
+      "reason_excluded": "Explicitly described by the informant as unconnected, mentioned only incidentally due to unrelated municipal-fee complaints occurring around the same time; no further evidence ties this individual to the core network."
+    },
+    {
+      "mention": "a wrong-number call from an unfamiliar number asking about an entirely unrelated matter concerning a vehicle repair",
+      "doc_id": "B4",
+      "reason_excluded": "Reported by the informant as unconnected and mentioned only for thoroughness; no evidence links the caller or matter to the extortion network."
+    }
+  ],
+  "cross_document_inconsistencies": [
+    {
+      "topic": "Recollection of amounts collected at Anand Sweets",
+      "doc_ids": ["A4"],
+      "description": "The complainant states amounts demanded varied from visit to visit and that his own recollection may differ from neighbouring shopkeepers' accounts, attributed to the informal, undocumented nature of the payments rather than a deliberate inconsistency."
+    },
+    {
+      "topic": "Amount demanded at Fashion Point Garments",
+      "doc_ids": ["A8"],
+      "description": "The complainant recalls the most recent payment as somewhat higher than previous occasions but is uncertain whether this reflects an actual increase or imprecise recollection."
+    }
+  ]
+}
