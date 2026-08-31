@@ -20,6 +20,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
   const [documents, setDocuments] = useState([]);
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState(null);
+  const [showDocuments, setShowDocuments] = useState(false); // Collapsible Documents Toggle
 
   // Feedback State
   const [fbVerdict, setFbVerdict] = useState(null);
@@ -75,7 +76,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
         officer_notes: fbNotes || `Marked as ${verdict} by investigator.`
       });
       setFbVerdict(verdict);
-      setFbSuccessMsg(`Verification recorded: ${verdict}`);
+      setFbSuccessMsg(`Status recorded: ${verdict}`);
       if (onFeedbackUpdated) onFeedbackUpdated(entity.id, verdict);
     } catch (err) {
       alert(`Error submitting feedback: ${err.message}`);
@@ -100,278 +101,254 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
 
   if (!entity) {
     return (
-      <aside className={`detail ${isOpen ? '' : 'collapsed'}`}>
-        <div className="detail-inner">
-          <div className="eyebrow">Selected Entity</div>
-          <h3>No entity selected</h3>
-          <div className="role">Click a pin on the board to view profile, audit trail & evidence.</div>
-        </div>
-      </aside>
+      <div className="detail-inner">
+        <div className="eyebrow">Subject Dossier</div>
+        <h3>No Entity Selected</h3>
+        <div className="role">Click any pin node on the corkboard to inspect its intelligence profile, evidentiary chain, and legal documents.</div>
+      </div>
     );
   }
 
   const dossierUrl = getDossierDownloadUrl(entity.id);
 
   return (
-    <aside className={`detail ${isOpen ? '' : 'collapsed'}`} style={{ overflowY: 'auto' }}>
-      <div className="detail-inner" style={{ padding: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="eyebrow">Subject Profile</div>
-          {fbVerdict === 'CONFIRMED' && (
-            <span style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22C55E', color: '#86EFAC', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-              ✓ VERIFIED BY OFFICER
+    <div className="detail-inner">
+      {/* Eyebrow & Status Badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="eyebrow">Subject Dossier</div>
+        {fbVerdict === 'CONFIRMED' && (
+          <span className="conf-stamp" style={{ fontSize: '8px' }}>
+            ✓ VERIFIED BY OFFICER
+          </span>
+        )}
+        {fbVerdict === 'REJECTED' && (
+          <span className="conf-stamp" style={{ fontSize: '8px', color: 'var(--stamp-red)', borderColor: 'var(--stamp-red)', background: 'var(--stamp-red-bg)' }}>
+            ✗ REJECTED
+          </span>
+        )}
+      </div>
+
+      {/* Identity Header */}
+      <div>
+        <h3 style={{ fontSize: '16px', margin: '2px 0 2px' }}>{entity.name}</h3>
+        <div className="role">{entity.fullRole || entity.role}</div>
+      </div>
+
+      {/* Quick Tactical Action Buttons */}
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <a
+          href={dossierUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tactical-btn export"
+          style={{ flex: 1, justifyContent: 'center', fontSize: '10.5px', padding: '5px 8px' }}
+          title="Download Formal Court Evidentiary Dossier (PDF)"
+        >
+          📄 Court Brief (PDF)
+        </a>
+        <button
+          onClick={handleExplainToHub}
+          disabled={xaiLoading}
+          className="tactical-btn"
+          style={{ flex: 1, justifyContent: 'center', fontSize: '10.5px', padding: '5px 8px' }}
+          title="Explain Evidentiary Link Chain to Master Syndicate Hub"
+        >
+          {xaiLoading ? 'Tracing...' : '🧠 Explain Link'}
+        </button>
+      </div>
+
+      {/* Explainability (XAI) Output Card */}
+      {xaiResult && (
+        <div style={{ background: 'var(--paper)', border: '1px solid var(--border-strong)', borderLeft: '4px solid var(--tag-amber)', borderRadius: '2px', padding: '10px', fontSize: '11.5px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>
+            <span>🧠 AI Reasoning Chain</span>
+            <span className="mono" style={{ fontSize: '9.5px', color: 'var(--tag-amber)' }}>
+              ({xaiResult.shortest_distance_hops} Hops)
             </span>
-          )}
-          {fbVerdict === 'REJECTED' && (
-            <span style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #EF4444', color: '#FCA5A5', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-              ✗ REJECTED
-            </span>
+          </div>
+          <p style={{ margin: '0 0 6px', color: 'var(--ink)', lineHeight: '1.4', fontSize: '11px' }}>
+            {xaiResult.summary_conclusion}
+          </p>
+          {xaiResult.paths && xaiResult.paths.length > 0 && (
+            <div style={{ background: 'var(--panel)', border: '1px dashed var(--border)', padding: '5px 7px', borderRadius: '2px', fontFamily: 'IBM Plex Mono, monospace', fontSize: '9.5px', color: 'var(--ink-soft)' }}>
+              <b>Chain:</b> {xaiResult.paths[0].nodes.join(' ➔ ')}
+            </div>
           )}
         </div>
+      )}
+      {xaiError && (
+        <div style={{ fontSize: '10.5px', color: 'var(--stamp-red)', padding: '5px 8px', border: '1px solid var(--stamp-red)', borderRadius: '2px', background: 'var(--stamp-red-bg)' }}>
+          {xaiError}
+        </div>
+      )}
 
-        <h3 style={{ margin: '6px 0 2px', fontSize: '1.2rem', color: '#F8FAFC' }}>{entity.name}</h3>
-        <div className="role" style={{ fontSize: '0.8rem', color: '#94A3B8', marginBottom: '14px' }}>{entity.fullRole}</div>
-
-        {/* Action Buttons: Export Brief & Explain Path */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          <a
-            href={dossierUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              flex: 1,
-              background: '#2563EB',
-              color: '#fff',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              textAlign: 'center',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}
-          >
-            📄 Legal Brief (PDF)
-          </a>
+      {/* Human-in-the-Loop Officer Verification */}
+      <div className="officer-verify-box">
+        <div className="officer-verify-title">
+          👮 Officer Corroboration
+        </div>
+        <div className="officer-btn-group">
           <button
-            onClick={handleExplainToHub}
-            disabled={xaiLoading}
-            style={{
-              flex: 1,
-              background: '#475569',
-              color: '#fff',
-              border: 'none',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}
+            onClick={() => handleFeedback('CONFIRMED')}
+            disabled={fbLoading}
+            className={`officer-btn confirm ${fbVerdict === 'CONFIRMED' ? 'active' : ''}`}
           >
-            {xaiLoading ? 'Tracing...' : '🧠 Explain Kingpin Link'}
+            ✓ Confirm
+          </button>
+          <button
+            onClick={() => handleFeedback('REJECTED')}
+            disabled={fbLoading}
+            className={`officer-btn reject ${fbVerdict === 'REJECTED' ? 'active' : ''}`}
+          >
+            ✗ Reject
+          </button>
+          <button
+            onClick={() => handleFeedback('UNCERTAIN')}
+            disabled={fbLoading}
+            className={`officer-btn flag ${fbVerdict === 'UNCERTAIN' ? 'active' : ''}`}
+          >
+            ? Flag
           </button>
         </div>
-
-        {/* Explainability (XAI) Output Card */}
-        {xaiResult && (
-          <div style={{ background: '#1E293B', border: '1px solid #3B82F6', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '0.8rem' }}>
-            <div style={{ fontWeight: 700, color: '#93C5FD', marginBottom: '4px' }}>
-              🧠 AI Evidentiary Reasoning Chain ({xaiResult.shortest_distance_hops} Hops)
-            </div>
-            <p style={{ margin: '0 0 8px', color: '#E2E8F0', lineHeight: '1.4' }}>
-              {xaiResult.summary_conclusion}
-            </p>
-            {xaiResult.paths && xaiResult.paths.length > 0 && (
-              <div style={{ background: '#0F172A', padding: '8px', borderRadius: '4px', fontSize: '0.75rem', color: '#CBD5E1' }}>
-                <b>Operational Path:</b> {xaiResult.paths[0].nodes.join(' ➔ ')}
-              </div>
-            )}
+        <input
+          type="text"
+          placeholder="Corroboration notes (optional)..."
+          value={fbNotes}
+          onChange={(e) => setFbNotes(e.target.value)}
+          className="officer-input"
+        />
+        {fbSuccessMsg && (
+          <div style={{ color: 'var(--stamp-green)', fontSize: '9.5px', marginTop: '4px', fontFamily: 'IBM Plex Mono, monospace' }}>
+            {fbSuccessMsg}
           </div>
         )}
-        {xaiError && (
-          <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #EF4444', color: '#FCA5A5', padding: '8px', borderRadius: '6px', fontSize: '0.75rem', marginBottom: '14px' }}>
-            {xaiError}
-          </div>
-        )}
+      </div>
 
-        {/* Officer Verification & Human-in-the-Loop Feedback Box */}
-        <div style={{ background: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F1F5F9', marginBottom: '8px' }}>
-            👮 Human-in-the-Loop Verification
-          </div>
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-            <button
-              onClick={() => handleFeedback('CONFIRMED')}
-              disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'CONFIRMED' ? '#16A34A' : 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid #22C55E',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              ✓ Confirm
-            </button>
-            <button
-              onClick={() => handleFeedback('REJECTED')}
-              disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'REJECTED' ? '#DC2626' : 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #EF4444',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              ✗ Reject
-            </button>
-            <button
-              onClick={() => handleFeedback('UNCERTAIN')}
-              disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'UNCERTAIN' ? '#D97706' : 'rgba(245, 158, 11, 0.15)',
-                border: '1px solid #F59E0B',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              ? Flag
-            </button>
-          </div>
-          <input
-            type="text"
-            placeholder="Officer corroboration notes (optional)..."
-            value={fbNotes}
-            onChange={(e) => setFbNotes(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '6px 8px',
-              background: '#0F172A',
-              border: '1px solid #334155',
-              borderRadius: '4px',
-              color: '#fff',
-              fontSize: '0.75rem',
-              boxSizing: 'border-box'
-            }}
-          />
-          {fbSuccessMsg && (
-            <div style={{ color: '#86EFAC', fontSize: '0.7rem', marginTop: '6px' }}>{fbSuccessMsg}</div>
-          )}
-        </div>
-
-        {/* Node Stats */}
+      {/* Intelligence Metric Rows */}
+      <div>
         <div className="stat-row">
-          <span className="k">Node type</span>
+          <span className="k">POLE Node Type</span>
           <span className="v">{entity.typeLabel || entity.type}</span>
         </div>
         <div className="stat-row">
-          <span className="k">Direct connections</span>
+          <span className="k">Direct Connections</span>
           <span className="v">{entity.connections}</span>
         </div>
         <div className="stat-row">
-          <span className="k">Centrality score</span>
-          <span className="v">{typeof entity.centrality === 'number' ? entity.centrality.toFixed(4) : entity.centrality}</span>
+          <span className="k">Centrality Index</span>
+          <span className="v">
+            {typeof entity.centrality === 'number' ? entity.centrality.toFixed(4) : entity.centrality}
+          </span>
         </div>
         <div className="stat-row">
-          <span className="k">Cases involved</span>
+          <span className="k">Crime Domains</span>
           <span className="v">{entity.casesInvolved}</span>
         </div>
 
         {entity.aliases && entity.aliases.length > 0 && (
-          <div style={{ marginTop: '10px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Known Aliases:</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {entity.aliases.map((al, idx) => (
-                <span key={idx} style={{ background: '#334155', color: '#E2E8F0', padding: '2px 6px', borderRadius: '3px', fontSize: '0.7rem' }}>
+          <div style={{ marginTop: '8px' }}>
+            <span style={{ fontSize: '10.5px', color: 'var(--ink-soft)', display: 'block', marginBottom: '3px' }}>
+              Aliases:
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+              {entity.aliases.slice(0, 6).map((al, idx) => (
+                <span key={idx} style={{ background: 'var(--paper)', border: '1px solid var(--border)', color: 'var(--ink)', padding: '1px 5px', borderRadius: '2px', fontSize: '9px', fontFamily: 'IBM Plex Mono, monospace' }}>
                   "{al}"
                 </span>
               ))}
+              {entity.aliases.length > 6 && (
+                <span style={{ fontSize: '9px', color: 'var(--ink-muted)', alignSelf: 'center' }}>
+                  +{entity.aliases.length - 6} more
+                </span>
+              )}
             </div>
           </div>
         )}
 
         {entity.timestamp && (
-          <div className="stat-row" style={{ marginTop: '10px' }}>
-            <span className="k">Recorded on</span>
+          <div className="stat-row" style={{ marginTop: '6px' }}>
+            <span className="k">Recorded Timestamp</span>
             <span className="v">{formatTimestamp(entity.timestamp)}</span>
           </div>
         )}
+      </div>
 
-        <div className="evidence" style={{ marginTop: '16px' }}>
-          <h4>Why this connection is flagged</h4>
-          <p>{entity.evidenceText}</p>
-          <div className="src">
-            <span>Source: {entity.source || 'Investigative Intercept'}</span>
-            <span className="conf-stamp">Digitally Hashed</span>
-          </div>
-        </div>
-
-        {/* Evidence Documents Accordion */}
-        <div className="documents" style={{ marginTop: '16px' }}>
-          <h4>Source Evidence (FIR / Intercepts)</h4>
-          {docLoading && <div style={{fontSize: '0.8rem', color: '#888'}}>Loading documents...</div>}
-          {docError && <div style={{fontSize: '0.8rem', color: 'red'}}>Error loading documents.</div>}
-          {!docLoading && !docError && (
-            <div className="doc-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {documents.length === 0 && <div className="doc-empty">No documents found for this case.</div>}
-              {documents.map((doc, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: '#1E293B',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    border: selectedDocId === idx ? '1px solid #3B82F6' : '1px solid rgba(255,255,255,0.05)'
-                  }}
-                  onClick={() => setSelectedDocId(selectedDocId === idx ? null : idx)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#F8FAFC' }}>
-                      {doc.doc_id || `Document ${idx + 1}`} ({doc.doc_type || 'FIR'})
-                    </div>
-                    {doc.sha256_hash && (
-                      <span style={{ fontSize: '0.65rem', color: '#0284C7', fontFamily: 'monospace' }}>
-                        SHA: {doc.sha256_hash.substring(0, 8)}...
-                      </span>
-                    )}
-                  </div>
-                  {selectedDocId === idx && (
-                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#94A3B8', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: '#0F172A', padding: '8px', borderRadius: '4px' }}>
-                      {doc.text}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Evidence Dossier Card with Tape Strips */}
+      <div className="evidence">
+        <h4>Why Flagged</h4>
+        <p>{entity.evidenceText}</p>
+        <div className="src">
+          <span>Source: {entity.source || 'Intercept Ingestion'}</span>
+          <span className="conf-stamp">DIGITALLY HASHED</span>
         </div>
       </div>
-      <div className="detail-footer" style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748B' }}>
+
+      {/* Optional Collapsible Primary Documents Dropdown */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: '3px', background: 'var(--paper)', overflow: 'hidden' }}>
+        <button
+          type="button"
+          onClick={() => setShowDocuments(!showDocuments)}
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            background: 'var(--panel)',
+            border: 'none',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: '10.5px',
+            fontWeight: 600,
+            color: 'var(--ink)'
+          }}
+        >
+          <span>📄 Primary Evidence Documents ({documents.length})</span>
+          <span>{showDocuments ? '▲ Hide' : '▼ Show'}</span>
+        </button>
+
+        {showDocuments && (
+          <div style={{ padding: '10px' }}>
+            {docLoading && <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Loading documents...</div>}
+            {docError && <div style={{ fontSize: '10.5px', color: 'var(--stamp-red)' }}>Error loading documents.</div>}
+            {!docLoading && !docError && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {documents.length === 0 && <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontStyle: 'italic' }}>No primary documents attached.</div>}
+                {documents.map((doc, idx) => (
+                  <div
+                    key={idx}
+                    className={`doc-item ${selectedDocId === idx ? 'selected' : ''}`}
+                    onClick={() => setSelectedDocId(selectedDocId === idx ? null : idx)}
+                    style={{ padding: '6px 8px', fontSize: '10.5px' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--ink)' }}>
+                        📄 {doc.doc_id || `Doc ${idx + 1}`} ({doc.doc_type || 'FIR'})
+                      </div>
+                      {doc.sha256_hash && (
+                        <span className="mono" style={{ fontSize: '8.5px', color: 'var(--tag-amber)' }}>
+                          SHA: {doc.sha256_hash.substring(0, 6)}...
+                        </span>
+                      )}
+                    </div>
+                    {selectedDocId === idx && (
+                      <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: 'var(--paper)', padding: '6px', borderRadius: '2px', border: '1px dashed var(--border)' }}>
+                        {doc.text}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="detail-footer">
         <span>DIGITAL CUSTODY: ACTIVE</span>
         <span>NCRB-MHA v2.0</span>
       </div>
-    </aside>
+    </div>
   );
 }

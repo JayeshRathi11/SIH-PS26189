@@ -43,8 +43,7 @@ data/processed/
 .env.*
 !.env.example
 
-# Excluded Documentation & Local Markdown per Instructions
-docs/
+# Excluded Local Markdown per Instructions
 Frontend_SIH/**/*.md
 Frontend_SIH/*.md
 

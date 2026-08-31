@@ -1,6 +1,16 @@
 import React, { useRef } from 'react';
 
-export default function PinNode({ entity, selected, onSelect, onDrag, isHighlighted, isDimmed }) {
+export default function PinNode({
+  entity,
+  selected,
+  onSelect,
+  onDrag,
+  isHighlighted,
+  isDimmed,
+  zoom = 1,
+  pan = { x: 0, y: 0 },
+  viewportRef
+}) {
   const draggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const movedRef = useRef(false);
@@ -9,7 +19,17 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
     e.stopPropagation();
     draggingRef.current = true;
     movedRef.current = false;
-    offsetRef.current = { x: e.clientX - entity.x, y: e.clientY - entity.y };
+
+    // Calculate offset in world coordinates taking zoom & pan into account
+    const viewportRect = viewportRef?.current?.getBoundingClientRect() || { left: 0, top: 0 };
+    const mouseWorldX = (e.clientX - viewportRect.left - pan.x) / zoom;
+    const mouseWorldY = (e.clientY - viewportRect.top - pan.y) / zoom;
+
+    offsetRef.current = {
+      x: mouseWorldX - entity.x,
+      y: mouseWorldY - entity.y,
+    };
+
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
   };
@@ -17,8 +37,14 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
   const handlePointerMove = (e) => {
     if (!draggingRef.current) return;
     movedRef.current = true;
-    const newX = Math.max(0, e.clientX - offsetRef.current.x);
-    const newY = Math.max(0, e.clientY - offsetRef.current.y);
+
+    const viewportRect = viewportRef?.current?.getBoundingClientRect() || { left: 0, top: 0 };
+    const mouseWorldX = (e.clientX - viewportRect.left - pan.x) / zoom;
+    const mouseWorldY = (e.clientY - viewportRect.top - pan.y) / zoom;
+
+    const newX = Math.round(mouseWorldX - offsetRef.current.x);
+    const newY = Math.round(mouseWorldY - offsetRef.current.y);
+
     onDrag(entity.id, newX, newY);
   };
 
@@ -28,46 +54,59 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
     window.removeEventListener('pointerup', handlePointerUp);
   };
 
-  const handleClick = () => {
-    if (!movedRef.current) onSelect(entity.id);
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (!movedRef.current) {
+      onSelect(entity.id);
+    }
   };
 
   const isConfirmed = entity.verified_by_officer || entity.status === 'CONFIRMED';
   const isRejected = entity.status === 'REJECTED';
 
-  let customBorder = undefined;
-  if (selected) {
-    customBorder = '2px solid #3B82F6';
-  } else if (isHighlighted) {
-    customBorder = '2px solid #F59E0B';
-  } else if (isConfirmed) {
-    customBorder = '2px solid #22C55E';
-  } else if (isRejected) {
-    customBorder = '1px dashed #EF4444';
-  }
+  let nodeClasses = `pin-node type-${entity.type || 'person'}`;
+  if (selected) nodeClasses += ' selected';
+  if (isHighlighted) nodeClasses += ' highlighted';
+  if (isDimmed) nodeClasses += ' dimmed';
+  if (isConfirmed) nodeClasses += ' confirmed';
+  if (isRejected) nodeClasses += ' rejected';
+
+  const centralityVal = typeof entity.centrality === 'number'
+    ? entity.centrality.toFixed(2)
+    : entity.centrality;
 
   return (
     <div
-      className={`pin-node type-${entity.type} ${selected ? 'selected' : ''}`}
+      className={nodeClasses}
       style={{
         left: entity.x,
         top: entity.y,
-        opacity: isDimmed ? 0.35 : (isRejected ? 0.5 : 1),
-        border: customBorder,
-        boxShadow: isHighlighted ? '0 0 12px rgba(245, 158, 11, 0.6)' : undefined,
-        textDecoration: isRejected ? 'line-through' : undefined,
-        transition: 'opacity 0.2s, box-shadow 0.2s'
       }}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
+      title="Drag to reposition on canvas · Click for profile"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        <div className="pname">{entity.shortName}</div>
-        {isConfirmed && <span style={{ color: '#22C55E', fontSize: '0.75rem', fontWeight: 800 }}>✓</span>}
-        {isRejected && <span style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 800 }}>✗</span>}
+      <div className="pname-row">
+        <div className="pname">{entity.shortName || entity.name}</div>
+        {isConfirmed && (
+          <span style={{ color: 'var(--stamp-green)', fontWeight: 800, fontSize: '11px' }} title="Verified by Officer">
+            ✓
+          </span>
+        )}
+        {isRejected && (
+          <span style={{ color: 'var(--stamp-red)', fontWeight: 800, fontSize: '11px' }} title="Rejected by Officer">
+            ✗
+          </span>
+        )}
       </div>
-      <div className="prole">{entity.role}</div>
-      <div className="pscore">CENTRALITY {typeof entity.centrality === 'number' ? entity.centrality.toFixed(2) : entity.centrality}</div>
+
+      <div className="prole">{entity.role || entity.typeLabel}</div>
+
+      <div className="pscore">
+        <span>CENTRALITY</span>
+        <span>{centralityVal}</span>
+      </div>
+
       {entity.timestamp && (
         <div className="ptime mono">
           {new Date(entity.timestamp).toLocaleDateString(undefined, {

@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
+import NavigationSidebar from './components/NavigationSidebar';
 import Board from './components/Board';
-import DetailPanel from './components/DetailPanel';
 import LoginModal from './components/LoginModal';
-import PatternsDrawer from './components/PatternsDrawer';
+import CaseFilesPage from './pages/CaseFilesPage';
+import EntitiesRegistryPage from './pages/EntitiesRegistryPage';
+import AnomalyHubPage from './pages/AnomalyHubPage';
+import DossiersPage from './pages/DossiersPage';
+import XaiConsolePage from './pages/XaiConsolePage';
+import BenchmarksPage from './pages/BenchmarksPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns } from './api/client';
 
 const INITIAL_CASES = [
@@ -22,9 +26,11 @@ const INITIAL_CASES = [
 ];
 
 export default function App() {
-  const [theme, setTheme] = useState('dark');
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('board');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('nexustrace_theme') || 'light';
+  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);
@@ -44,11 +50,11 @@ export default function App() {
 
   // Suspicious Patterns State
   const [patterns, setPatterns] = useState([]);
-  const [patternsDrawerOpen, setPatternsDrawerOpen] = useState(false);
   const [focusedPattern, setFocusedPattern] = useState(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('nexustrace_theme', theme);
   }, [theme]);
 
   // Load current user session
@@ -88,20 +94,8 @@ export default function App() {
     loadGraph();
   }, [loadGraph]);
 
-  const activeCase = cases.find((c) => c.id === activeCaseId);
-  const selectedEntity = entities.find((e) => e.id === selectedEntityId) || null;
-
   const handleDrag = (id, x, y) => {
     setEntities((prev) => prev.map((e) => (e.id === id ? { ...e, x, y } : e)));
-  };
-
-  const handleReorderCases = (fromIndex, toIndex) => {
-    setCases((prev) => {
-      const arr = [...prev];
-      const [moved] = arr.splice(fromIndex, 1);
-      arr.splice(toIndex, 0, moved);
-      return arr;
-    });
   };
 
   const handleAddCase = (newCase) => {
@@ -126,89 +120,140 @@ export default function App() {
 
   const handleFocusPattern = (pattern) => {
     setFocusedPattern(pattern);
-    setPatternsDrawerOpen(false);
+    setActiveTab('board');
     if (pattern.target_entity) {
       setSelectedEntityId(pattern.target_entity);
     }
   };
 
+  const handleOpenInBoard = (caseId) => {
+    setActiveCaseId(caseId);
+    setActiveTab('board');
+  };
+
+  const handleOpenEntityInBoard = (entityId) => {
+    setSelectedEntityId(entityId);
+    setActiveTab('board');
+  };
+
   return (
-    <div
-      className="app"
-      style={{
-        gridTemplateColumns: `${leftOpen ? '280px' : '0px'} 1fr ${rightOpen ? '360px' : '0px'}`,
-      }}
-    >
-      <Header
+    <div className="app-shell-sidebar-layout">
+      {/* Collapsible Left Navigation Sidebar */}
+      <NavigationSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
-        leftOpen={leftOpen}
-        rightOpen={rightOpen}
-        onToggleLeft={() => setLeftOpen((o) => !o)}
-        onToggleRight={() => setRightOpen((o) => !o)}
-        caseLabel={activeCase?.title || 'Cross-Domain Crime Analytics'}
         currentUser={currentUser}
         onOpenAuthModal={() => setAuthModalOpen(true)}
-        onOpenPatternsDrawer={() => setPatternsDrawerOpen(true)}
         patternsCount={patterns.length}
-        selectedEntity={selectedEntity}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <Sidebar
-        cases={cases}
-        activeCaseId={activeCaseId}
-        onSelectCase={setActiveCaseId}
-        onReorderCases={handleReorderCases}
-        onAddCase={handleAddCase}
-        isOpen={leftOpen}
-      />
+      {/* Main Page Content Area */}
+      <div className="app-main-view">
+        {loading && activeTab === 'board' && (
+          <div className="canvas-loading-banner">
+            <span className="status-dot"></span>
+            <span>Synthesizing Link Analysis Graph...</span>
+          </div>
+        )}
 
-      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-        {loading && (
-          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 100, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', color: '#fff', padding: '8px 16px', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-            Loading POLE Graph & Analytics...
+        {error && activeTab === 'board' && (
+          <div className="canvas-error-banner">
+            ⚠️ {error}
           </div>
         )}
-        {error && (
-          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 100, background: 'rgba(239, 68, 68, 0.9)', color: 'white', padding: '8px 16px', borderRadius: '6px', fontSize: '0.85rem' }}>
-            {error}
-          </div>
+
+        {/* Tab 1: Interactive Case Board */}
+        {activeTab === 'board' && (
+          <Board
+            entities={entities}
+            threads={threads}
+            selectedId={selectedEntityId}
+            onSelect={setSelectedEntityId}
+            onDrag={handleDrag}
+            cases={cases}
+            activeCaseId={activeCaseId}
+            onSelectCase={setActiveCaseId}
+            focusedPattern={focusedPattern}
+            onClearPatternFocus={() => setFocusedPattern(null)}
+            temporalDate={temporalDate}
+            onTemporalDateChange={setTemporalDate}
+            onFeedbackUpdated={handleFeedbackUpdated}
+          />
         )}
-        <Board
-          entities={entities}
-          threads={threads}
-          selectedId={selectedEntityId}
-          onSelect={setSelectedEntityId}
-          onDrag={handleDrag}
-          activeCase={activeCase}
-          focusedPattern={focusedPattern}
-          onClearPatternFocus={() => setFocusedPattern(null)}
-          temporalDate={temporalDate}
-          onTemporalDateChange={setTemporalDate}
-        />
+
+        {/* Tab 2: Case Files & Ingestion Hub */}
+        {activeTab === 'cases' && (
+          <CaseFilesPage
+            cases={cases}
+            activeCaseId={activeCaseId}
+            onSelectCase={setActiveCaseId}
+            onOpenInBoard={handleOpenInBoard}
+            onAddCase={handleAddCase}
+          />
+        )}
+
+        {/* Tab 3: POLE Entities Registry */}
+        {activeTab === 'entities' && (
+          <EntitiesRegistryPage
+            entities={entities}
+            cases={cases}
+            activeCaseId={activeCaseId}
+            onSelectCase={setActiveCaseId}
+            onOpenEntityInBoard={handleOpenEntityInBoard}
+          />
+        )}
+
+        {/* Tab 4: Syndicate Anomaly Hub */}
+        {activeTab === 'anomalies' && (
+          <AnomalyHubPage
+            patterns={patterns}
+            onFocusPattern={handleFocusPattern}
+            activeCaseId={activeCaseId}
+            cases={cases}
+            onSelectCase={setActiveCaseId}
+          />
+        )}
+
+        {/* Tab 5: Court Dossiers & Evidence Library */}
+        {activeTab === 'dossiers' && (
+          <DossiersPage
+            cases={cases}
+            activeCaseId={activeCaseId}
+            onSelectCase={setActiveCaseId}
+            entities={entities}
+          />
+        )}
+
+        {/* Tab 6: XAI Evidentiary Pathfinder Console */}
+        {activeTab === 'xai' && (
+          <XaiConsolePage entities={entities} />
+        )}
+
+        {/* Tab 7: Forensic Benchmarks Suite */}
+        {activeTab === 'benchmarks' && (
+          <BenchmarksPage
+            cases={cases}
+            activeCaseId={activeCaseId}
+            onSelectCase={setActiveCaseId}
+          />
+        )}
+
+        {/* Tab 8: Security & Audit Ledger */}
+        {activeTab === 'audit' && (
+          <AuditLogsPage currentUser={currentUser} />
+        )}
       </div>
 
-      <DetailPanel
-        entity={selectedEntity}
-        isOpen={rightOpen}
-        activeCaseId={activeCaseId}
-        onFeedbackUpdated={handleFeedbackUpdated}
-      />
-
-      {/* Auth & Role Switcher Modal */}
+      {/* Auth & RBAC Persona Switcher Modal */}
       <LoginModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         currentUser={currentUser}
         onUserChange={setCurrentUser}
-      />
-
-      {/* Suspicious Patterns Drawer */}
-      <PatternsDrawer
-        isOpen={patternsDrawerOpen}
-        onClose={() => setPatternsDrawerOpen(false)}
-        patterns={patterns}
-        onFocusPattern={handleFocusPattern}
       />
     </div>
   );

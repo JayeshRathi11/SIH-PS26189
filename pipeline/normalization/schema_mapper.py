@@ -1,74 +1,82 @@
+import logging
 from typing import Dict, Any
-from pipeline.config import MasterRelationshipType, EntityType
+from pipeline.config import EntityType, MasterRelationshipType
 
-# Relation Mapping Table
-RELATION_MAPPING = {
-    # CO_LOCATED_WITH
-    "MET": MasterRelationshipType.CO_LOCATED_WITH.value,
-    "COORDINATED_MOVEMENT": MasterRelationshipType.CO_LOCATED_WITH.value,
-    "CO_LOCATED_WITH": MasterRelationshipType.CO_LOCATED_WITH.value,
+logger = logging.getLogger(__name__)
 
-    # ASSOCIATE_OF
+RELATIONSHIP_MAPPING = {
     "INSTRUCTED": MasterRelationshipType.ASSOCIATE_OF.value,
-    "ASSOCIATED_WITH": MasterRelationshipType.ASSOCIATE_OF.value,
-    "FORGED_DOCUMENT_FOR": MasterRelationshipType.ASSOCIATE_OF.value,
-    "ARRANGED_RANSOM_DROP": MasterRelationshipType.ASSOCIATE_OF.value,
-    "DISTRIBUTED_CONSIGNMENT": MasterRelationshipType.ASSOCIATE_OF.value,
+    "ORDERS": MasterRelationshipType.ASSOCIATE_OF.value,
+    "COMMANDED": MasterRelationshipType.ASSOCIATE_OF.value,
+    "TASKED": MasterRelationshipType.ASSOCIATE_OF.value,
+    "DIRECTED": MasterRelationshipType.ASSOCIATE_OF.value,
+    "MET_WITH": MasterRelationshipType.ASSOCIATE_OF.value,
+    "CONTACTED": MasterRelationshipType.ASSOCIATE_OF.value,
     "ASSOCIATE_OF": MasterRelationshipType.ASSOCIATE_OF.value,
-    "RECRUITED": MasterRelationshipType.ASSOCIATE_OF.value,
-    "ENFORCED_FOR": MasterRelationshipType.ASSOCIATE_OF.value,
-
-    # FINANCIAL_TRANSACTION_WITH
-    "ARRANGED_PAYMENT": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-    "ARRANGED_FUNDS": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-    "RECEIVED_PAYMENT": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-    "SETTLED_PAYMENT_VIA_HAWALA": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-    "FINANCIAL_TRANSACTION_WITH": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-    "TRANSFERRED_FUNDS": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
-
-    # OWNS_VEHICLE
-    "HANDED_OFF_VEHICLE": MasterRelationshipType.OWNS_VEHICLE.value,
-    "RE_REGISTERED_VEHICLE": MasterRelationshipType.OWNS_VEHICLE.value,
-    "OWNS_VEHICLE": MasterRelationshipType.OWNS_VEHICLE.value,
-    "USED_VEHICLE": MasterRelationshipType.OWNS_VEHICLE.value,
-
-    # CALLED
-    "CALLED": MasterRelationshipType.CALLED.value,
-
-    # MEMBERSHIP_OF
-    "MEMBERSHIP_OF": MasterRelationshipType.MEMBERSHIP_OF.value,
-    "MEMBER_OF": MasterRelationshipType.MEMBERSHIP_OF.value,
-
-    # LEADS_ORGANIZATION
+    "CO_CONSPIRATOR": MasterRelationshipType.ASSOCIATE_OF.value,
+    "LEADS": MasterRelationshipType.LEADS_ORGANIZATION.value,
     "LEADS_ORGANIZATION": MasterRelationshipType.LEADS_ORGANIZATION.value,
-    "HEAD_OF": MasterRelationshipType.LEADS_ORGANIZATION.value,
-    "MANAGES": MasterRelationshipType.LEADS_ORGANIZATION.value,
+    "BENEFICIAL_OWNER_OF": MasterRelationshipType.LEADS_ORGANIZATION.value,
+    "DIRECTOR_OF": MasterRelationshipType.LEADS_ORGANIZATION.value,
+    "TRANSFERRED": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "PAID": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "WIRED": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "ROUTED": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "FINANCIAL_TRANSACTION_WITH": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "SETTLED_PAYMENT_VIA_HAWALA": MasterRelationshipType.FINANCIAL_TRANSACTION_WITH.value,
+    "SPOTTED_AT": MasterRelationshipType.LOCATED_AT.value,
+    "LOCATED_AT": MasterRelationshipType.LOCATED_AT.value,
+    "RESIDING_AT": MasterRelationshipType.LOCATED_AT.value,
+    "ARRIVED_AT": MasterRelationshipType.LOCATED_AT.value,
+    "CALLED": MasterRelationshipType.CALLED.value,
+    "TELEPHONED": MasterRelationshipType.CALLED.value,
+    "DRIVING": MasterRelationshipType.OPERATES_VEHICLE.value,
+    "OPERATES_VEHICLE": MasterRelationshipType.OPERATES_VEHICLE.value,
+    "TRANSPORTED_IN": MasterRelationshipType.OPERATES_VEHICLE.value,
+    "PARTICIPATED_IN_EVENT": MasterRelationshipType.PARTICIPATED_IN_EVENT.value,
+    "CASE_INVOLVES": MasterRelationshipType.CASE_INVOLVES.value,
+    "TRANSACTION_INVOLVES": MasterRelationshipType.TRANSACTION_INVOLVES.value,
+    "EVIDENCE_IN_DOCUMENT": MasterRelationshipType.EVIDENCE_IN_DOCUMENT.value
 }
 
-# Entity Type Normalization Table
-ENTITY_TYPE_MAPPING = {
-    "PHONE": EntityType.PHONE_NUMBER.value,
-    "PHONE_NUMBER": EntityType.PHONE_NUMBER.value,
-    "PERSON": EntityType.PERSON.value,
-    "ORGANIZATION": EntityType.ORGANIZATION.value,
-    "LOCATION": EntityType.LOCATION.value,
-    "VEHICLE": EntityType.VEHICLE.value,
-    "FINANCIAL_ACCOUNT": EntityType.FINANCIAL_ACCOUNT.value,
-    "DOCUMENT_FRONT": EntityType.DOCUMENT_FRONT.value,
-}
-
-def normalize_entity_type(raw_type: str) -> str:
-    cleaned = (raw_type or "").strip().upper()
-    return ENTITY_TYPE_MAPPING.get(cleaned, EntityType.PERSON.value)
 
 def normalize_relationship(rel_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normalizes a extracted relationship dictionary to master schema while preserving raw_relationship_type.
-    """
-    raw_rel = rel_dict.get("relationship_type", "").strip().upper()
-    master_rel = RELATION_MAPPING.get(raw_rel, MasterRelationshipType.ASSOCIATE_OF.value)
+    raw_rel = rel_dict.get("relationship_type", "ASSOCIATE_OF")
+    normalized_rel = RELATIONSHIP_MAPPING.get(raw_rel.upper(), MasterRelationshipType.ASSOCIATE_OF.value)
     
-    normalized = dict(rel_dict)
-    normalized["raw_relationship_type"] = raw_rel
-    normalized["relationship_type"] = master_rel
-    return normalized
+    return {
+        "source": rel_dict.get("source"),
+        "source_type": normalize_entity_type(rel_dict.get("source_type", "PERSON")),
+        "relationship_type": normalized_rel,
+        "raw_relationship_type": raw_rel,
+        "target": rel_dict.get("target"),
+        "target_type": normalize_entity_type(rel_dict.get("target_type", "PERSON")),
+        "confidence": rel_dict.get("confidence", 0.90),
+        "timestamp": rel_dict.get("timestamp"),
+        "evidence": rel_dict.get("evidence", "")
+    }
+
+
+def normalize_entity_type(raw_type: str) -> str:
+    upper = (raw_type or "").upper().strip()
+    if upper in ["PERSON", "SUSPECT", "OPERATIVE", "WITNESS"]:
+        return EntityType.PERSON.value
+    if upper in ["ORGANIZATION", "ORG", "COMPANY", "SHELL_COMPANY", "SYNDICATE"]:
+        return EntityType.ORGANIZATION.value
+    if upper in ["LOCATION", "LOC", "PLACE", "ADDRESS", "SAFEHOUSE"]:
+        return EntityType.LOCATION.value
+    if upper in ["VEHICLE", "CAR", "TRUCK"]:
+        return EntityType.VEHICLE.value
+    if upper in ["PHONE_NUMBER", "PHONE", "MSISDN"]:
+        return EntityType.PHONE_NUMBER.value
+    if upper in ["BANK_ACCOUNT", "ACCOUNT", "MULE_ACCOUNT"]:
+        return EntityType.BANK_ACCOUNT.value
+    if upper in ["TRANSACTION", "PAYMENT"]:
+        return EntityType.TRANSACTION.value
+    if upper in ["CASE", "FIR"]:
+        return EntityType.CASE.value
+    if upper in ["EVENT", "INCIDENT"]:
+        return EntityType.EVENT.value
+    if upper in ["DOCUMENT", "DOC"]:
+        return EntityType.DOCUMENT.value
+    return EntityType.PERSON.value

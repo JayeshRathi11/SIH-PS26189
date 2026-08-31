@@ -15,7 +15,9 @@ def get_all_domain_evaluations():
     entities = full_graph["nodes"]
     edges = full_graph["edges"]
 
-    for d_key in DOMAINS.keys():
+    domain_list = list(DOMAINS.keys()) if isinstance(DOMAINS, dict) else list(DOMAINS)
+
+    for d_key in domain_list:
         d_entities = [e for e in entities if d_key in e.get("domains", [])]
         d_edges = [e for e in edges if e.get("domain") == d_key]
         

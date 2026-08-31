@@ -24,7 +24,7 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
       onUserChange(userProfile);
       onClose();
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Authentication failed. Please check credentials.');
     } finally {
       setLoading(false);
     }
@@ -36,40 +36,30 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      background: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div style={{
-        background: '#111827',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        borderRadius: '12px',
-        width: '100%',
-        maxWidth: '440px',
-        padding: '24px',
-        color: '#F9FAFB',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="tactical-modal-card" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Secure Terminal Access</h3>
-            <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#9CA3AF' }}>MHA / NCRB Role-Based Authentication</p>
+            <div className="eyebrow" style={{ color: 'var(--stamp-red)', fontSize: '9.5px', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
+              ● CLASSIFIED ACCESS CONTROL
+            </div>
+            <h3 style={{ margin: '2px 0 0', fontSize: '18px', fontFamily: 'Space Grotesk, sans-serif', color: 'var(--ink)' }}>
+              Officer Terminal Authorization
+            </h3>
+            <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--ink-soft)' }}>
+              MHA / NCRB Role-Based Access Control (RBAC)
+            </p>
           </div>
           <button
             onClick={onClose}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#9CA3AF',
-              fontSize: '1.25rem',
-              cursor: 'pointer'
+              color: 'var(--ink-muted)',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '2px 6px'
             }}
           >
             ✕
@@ -78,22 +68,22 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
 
         {error && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.2)',
-            border: '1px solid #EF4444',
-            color: '#FCA5A5',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '0.85rem',
-            marginBottom: '16px'
+            background: 'var(--stamp-red-bg)',
+            border: '1px solid var(--stamp-red)',
+            color: 'var(--stamp-red)',
+            padding: '8px 10px',
+            borderRadius: '2px',
+            fontSize: '11.5px',
+            marginBottom: '14px'
           }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', color: '#D1D5DB' }}>
-              Username
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--ink-soft)', fontFamily: 'IBM Plex Mono, monospace' }}>
+              Officer Call-Sign / Username:
             </label>
             <input
               type="text"
@@ -101,21 +91,21 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
               onChange={(e) => setUsername(e.target.value)}
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                background: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '0.9rem',
-                boxSizing: 'border-box'
+                padding: '8px 10px',
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                borderRadius: '2px',
+                color: 'var(--ink)',
+                fontSize: '12px',
+                fontFamily: 'IBM Plex Mono, monospace'
               }}
               required
             />
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', color: '#D1D5DB' }}>
-              Password
+            <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--ink-soft)', fontFamily: 'IBM Plex Mono, monospace' }}>
+              Passphrase / Authorization Key:
             </label>
             <input
               type="password"
@@ -123,13 +113,13 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
               onChange={(e) => setPassword(e.target.value)}
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                background: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '0.9rem',
-                boxSizing: 'border-box'
+                padding: '8px 10px',
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                borderRadius: '2px',
+                color: 'var(--ink)',
+                fontSize: '12px',
+                fontFamily: 'IBM Plex Mono, monospace'
               }}
               required
             />
@@ -140,24 +130,27 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
             disabled={loading}
             style={{
               width: '100%',
-              padding: '10px',
-              background: '#DC2626',
-              color: '#fff',
+              padding: '9px',
+              background: 'var(--stamp-red)',
+              color: '#FFF',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '2px',
               fontWeight: 600,
-              fontSize: '0.95rem',
+              fontSize: '12px',
+              fontFamily: 'IBM Plex Mono, monospace',
               cursor: 'pointer',
-              marginBottom: '16px'
+              marginBottom: '16px',
+              letterSpacing: '0.04em'
             }}
           >
-            {loading ? 'Authenticating...' : 'Authenticate Officer Session'}
+            {loading ? 'Verifying Security Token...' : 'Authenticate Officer Session'}
           </button>
         </form>
 
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '14px' }}>
-          <p style={{ margin: '0 0 8px', fontSize: '0.75rem', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Quick Persona Switcher:
+        {/* Quick Role Persona Switcher */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+          <p style={{ margin: '0 0 8px', fontSize: '10px', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'IBM Plex Mono, monospace' }}>
+            Quick Security Personas:
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {quickUsers.map((qu) => (
@@ -166,12 +159,12 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
                 type="button"
                 onClick={() => handleSelectQuickUser(qu)}
                 style={{
-                  background: username === qu.user ? 'rgba(220, 38, 38, 0.2)' : '#1F2937',
-                  border: username === qu.user ? '1px solid #DC2626' : '1px solid #374151',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  color: '#E5E7EB',
-                  fontSize: '0.8rem',
+                  background: username === qu.user ? 'var(--tag-amber-bg)' : 'var(--panel)',
+                  border: username === qu.user ? '1px solid var(--tag-amber)' : '1px solid var(--border)',
+                  borderRadius: '2px',
+                  padding: '6px 9px',
+                  color: 'var(--ink)',
+                  fontSize: '11px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   cursor: 'pointer',
@@ -179,7 +172,9 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange 
                 }}
               >
                 <span>{qu.name} (<code>{qu.user}</code>)</span>
-                <span style={{ color: '#9CA3AF', fontSize: '0.75rem' }}>{qu.role}</span>
+                <span style={{ color: 'var(--ink-muted)', fontSize: '10px', fontFamily: 'IBM Plex Mono, monospace' }}>
+                  {qu.role}
+                </span>
               </button>
             ))}
           </div>
