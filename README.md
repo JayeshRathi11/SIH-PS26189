@@ -18,6 +18,9 @@ All project architecture, presentation scripts, and operation guides have been c
 3. 🚀 **[docs/3_QUICKSTART_AND_OPERATIONS.md](docs/3_QUICKSTART_AND_OPERATIONS.md)**  
    * Quickstart setup commands, backend/frontend server launch instructions, RBAC user credentials (`INVESTIGATOR`, `OFFICER_IN_CHARGE`, `AUDITOR`), and test execution guide.
 
+4. 🛡️ **[docs/SIH_PS26189.md](docs/SIH_PS26189.md)**  
+   * Comprehensive Engineering Audit & Technical Evaluation covering Frontend, Backend, and Pipeline deep dives, Strong/Weak/Incomplete/Missing points analysis, and Future Recommendations.
+
 ---
 
 ## ⚡ Quick Run (Local Startup)
