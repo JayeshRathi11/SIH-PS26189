@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchCaseDocuments, submitInvestigatorFeedback, explainPath, getDossierDownloadUrl, downloadDossier } from '../api/client';
+import { fetchCaseDocuments, submitInvestigatorFeedback, explainPath, downloadDossier } from '../api/client';
 
 function formatTimestamp(iso) {
   if (!iso) return null;
@@ -104,38 +104,33 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
         <div className="detail-inner">
           <div className="eyebrow">Selected Entity</div>
           <h3>No entity selected</h3>
-          <div className="role">Click a pin on the board to view profile, audit trail & evidence.</div>
+          <div className="role">Click a pin on the board to view profile, audit trail &amp; evidence.</div>
         </div>
       </aside>
     );
   }
 
-  const dossierUrl = getDossierDownloadUrl(entity.id);
-
   return (
-    <aside className={`detail ${isOpen ? '' : 'collapsed'}`} style={{ overflowY: 'auto' }}>
+    <aside className={`detail ${isOpen ? '' : 'collapsed'}`}>
       <div className="detail-inner" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="eyebrow">Subject Profile</div>
           {fbVerdict === 'CONFIRMED' && (
-            <span style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22C55E', color: '#86EFAC', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-              ✓ VERIFIED BY OFFICER
-            </span>
+            <span className="badge badge-success">&#10003; VERIFIED BY OFFICER</span>
           )}
           {fbVerdict === 'REJECTED' && (
-            <span style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #EF4444', color: '#FCA5A5', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-              ✗ REJECTED
-            </span>
+            <span className="badge badge-danger">&#10007; REJECTED</span>
           )}
         </div>
 
-        <h3 style={{ margin: '6px 0 2px', fontSize: '1.2rem', color: '#F8FAFC' }}>{entity.name}</h3>
-        <div className="role" style={{ fontSize: '0.8rem', color: '#94A3B8', marginBottom: '14px' }}>{entity.fullRole}</div>
+        <h3 style={{ margin: '6px 0 2px', fontSize: '1.2rem' }}>{entity.name}</h3>
+        <div className="role" style={{ fontSize: '0.8rem', marginBottom: '14px' }}>{entity.fullRole}</div>
 
         {/* Action Buttons: Export Brief & Explain Path */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
           <button
             type="button"
+            className="btn btn-info"
             onClick={async () => {
               try {
                 await downloadDossier(entity.id, entity.name);
@@ -143,125 +138,73 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
                 alert(err.message || 'Failed to download court dossier.');
               }
             }}
-            style={{
-              flex: 1,
-              background: '#2563EB',
-              color: '#fff',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              textAlign: 'center',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              cursor: 'pointer',
-              border: 'none'
-            }}
+            style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: 600 }}
           >
-            📄 Legal Brief (PDF)
+            <span aria-hidden="true">📄</span> Legal Brief (PDF)
           </button>
           <button
+            type="button"
+            className="btn btn-ghost"
             onClick={handleExplainToHub}
             disabled={xaiLoading}
-            style={{
-              flex: 1,
-              background: '#475569',
-              color: '#fff',
-              border: 'none',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}
+            style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: 600 }}
           >
-            {xaiLoading ? 'Tracing...' : '🧠 Explain Kingpin Link'}
+            {xaiLoading ? 'Tracing...' : (<><span aria-hidden="true">🧠</span> Explain Kingpin Link</>)}
           </button>
         </div>
 
         {/* Explainability (XAI) Output Card */}
         {xaiResult && (
-          <div style={{ background: '#1E293B', border: '1px solid #3B82F6', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '0.8rem' }}>
-            <div style={{ fontWeight: 700, color: '#93C5FD', marginBottom: '4px' }}>
-              🧠 AI Evidentiary Reasoning Chain ({xaiResult.shortest_distance_hops} Hops)
+          <div className="card-raised" style={{ borderColor: 'var(--info)', marginBottom: '16px', fontSize: '0.8rem' }}>
+            <div style={{ fontWeight: 700, color: 'var(--info)', marginBottom: '4px' }}>
+              <span aria-hidden="true">🧠</span> AI Evidentiary Reasoning Chain ({xaiResult.shortest_distance_hops} Hops)
             </div>
-            <p style={{ margin: '0 0 8px', color: '#E2E8F0', lineHeight: '1.4' }}>
+            <p style={{ margin: '0 0 8px', color: 'var(--ink)', lineHeight: '1.4' }}>
               {xaiResult.summary_conclusion}
             </p>
             {xaiResult.paths && xaiResult.paths.length > 0 && (
-              <div style={{ background: '#0F172A', padding: '8px', borderRadius: '4px', fontSize: '0.75rem', color: '#CBD5E1' }}>
-                <b>Operational Path:</b> {xaiResult.paths[0].nodes.join(' ➔ ')}
+              <div style={{ background: 'var(--paper)', border: '1px solid var(--border)', padding: '8px', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: 'var(--ink-soft)' }}>
+                <b style={{ color: 'var(--ink)' }}>Operational Path:</b> {xaiResult.paths[0].nodes.join(' ➔ ')}
               </div>
             )}
           </div>
         )}
         {xaiError && (
-          <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #EF4444', color: '#FCA5A5', padding: '8px', borderRadius: '6px', fontSize: '0.75rem', marginBottom: '14px' }}>
+          <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--stamp-red)', color: 'var(--stamp-red)', padding: '8px', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', marginBottom: '14px' }}>
             {xaiError}
           </div>
         )}
 
         {/* Officer Verification & Human-in-the-Loop Feedback Box */}
-        <div style={{ background: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F1F5F9', marginBottom: '8px' }}>
-            👮 Human-in-the-Loop Verification
+        <div className="card-raised" style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>
+            <span aria-hidden="true">👮</span> Human-in-the-Loop Verification
           </div>
           <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
             <button
+              type="button"
+              className={`btn btn-success${fbVerdict === 'CONFIRMED' ? ' is-active' : ''}`}
               onClick={() => handleFeedback('CONFIRMED')}
               disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'CONFIRMED' ? '#16A34A' : 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid #22C55E',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ flex: 1, padding: '6px 4px', fontSize: '0.75rem', fontWeight: 600 }}
             >
-              ✓ Confirm
+              &#10003; Confirm
             </button>
             <button
+              type="button"
+              className={`btn btn-danger${fbVerdict === 'REJECTED' ? ' is-active' : ''}`}
               onClick={() => handleFeedback('REJECTED')}
               disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'REJECTED' ? '#DC2626' : 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #EF4444',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ flex: 1, padding: '6px 4px', fontSize: '0.75rem', fontWeight: 600 }}
             >
-              ✗ Reject
+              &#10007; Reject
             </button>
             <button
+              type="button"
+              className={`btn btn-warning${fbVerdict === 'UNCERTAIN' ? ' is-active' : ''}`}
               onClick={() => handleFeedback('UNCERTAIN')}
               disabled={fbLoading}
-              style={{
-                flex: 1,
-                background: fbVerdict === 'UNCERTAIN' ? '#D97706' : 'rgba(245, 158, 11, 0.15)',
-                border: '1px solid #F59E0B',
-                color: '#fff',
-                padding: '6px 4px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ flex: 1, padding: '6px 4px', fontSize: '0.75rem', fontWeight: 600 }}
             >
               ? Flag
             </button>
@@ -274,16 +217,16 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
             style={{
               width: '100%',
               padding: '6px 8px',
-              background: '#0F172A',
-              border: '1px solid #334155',
-              borderRadius: '4px',
-              color: '#fff',
+              background: 'var(--paper)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--ink)',
               fontSize: '0.75rem',
               boxSizing: 'border-box'
             }}
           />
           {fbSuccessMsg && (
-            <div style={{ color: '#86EFAC', fontSize: '0.7rem', marginTop: '6px' }}>{fbSuccessMsg}</div>
+            <div style={{ color: 'var(--stamp-green)', fontSize: '0.7rem', marginTop: '6px' }}>{fbSuccessMsg}</div>
           )}
         </div>
 
@@ -307,10 +250,10 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
 
         {entity.aliases && entity.aliases.length > 0 && (
           <div style={{ marginTop: '10px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Known Aliases:</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--ink-soft)', display: 'block', marginBottom: '4px' }}>Known Aliases:</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
               {entity.aliases.map((al, idx) => (
-                <span key={idx} style={{ background: '#334155', color: '#E2E8F0', padding: '2px 6px', borderRadius: '3px', fontSize: '0.7rem' }}>
+                <span key={idx} className="badge">
                   "{al}"
                 </span>
               ))}
@@ -337,35 +280,29 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
         {/* Evidence Documents Accordion */}
         <div className="documents" style={{ marginTop: '16px' }}>
           <h4>Source Evidence (FIR / Intercepts)</h4>
-          {docLoading && <div style={{fontSize: '0.8rem', color: '#888'}}>Loading documents...</div>}
-          {docError && <div style={{fontSize: '0.8rem', color: 'red'}}>Error loading documents.</div>}
+          {docLoading && <div style={{ fontSize: '0.8rem', color: 'var(--ink-soft)' }}>Loading documents...</div>}
+          {docError && <div style={{ fontSize: '0.8rem', color: 'var(--stamp-red)' }}>Error loading documents.</div>}
           {!docLoading && !docError && (
-            <div className="doc-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="doc-list">
               {documents.length === 0 && <div className="doc-empty">No documents found for this case.</div>}
               {documents.map((doc, idx) => (
                 <div
                   key={idx}
-                  style={{
-                    background: '#1E293B',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    border: selectedDocId === idx ? '1px solid #3B82F6' : '1px solid rgba(255,255,255,0.05)'
-                  }}
+                  className={`doc-item${selectedDocId === idx ? ' selected' : ''}`}
                   onClick={() => setSelectedDocId(selectedDocId === idx ? null : idx)}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#F8FAFC' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
                       {doc.doc_id || `Document ${idx + 1}`} ({doc.doc_type || 'FIR'})
                     </div>
                     {doc.sha256_hash && (
-                      <span style={{ fontSize: '0.65rem', color: '#0284C7', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--info)', fontFamily: 'monospace' }}>
                         SHA: {doc.sha256_hash.substring(0, 8)}...
                       </span>
                     )}
                   </div>
                   {selectedDocId === idx && (
-                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#94A3B8', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: '#0F172A', padding: '8px', borderRadius: '4px' }}>
+                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: 'var(--paper)', border: '1px solid var(--border)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
                       {doc.text}
                     </div>
                   )}
@@ -375,7 +312,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
           )}
         </div>
       </div>
-      <div className="detail-footer" style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748B' }}>
+      <div className="detail-footer">
         <span>DIGITAL CUSTODY: ACTIVE</span>
         <span>NCRB-MHA v2.0</span>
       </div>

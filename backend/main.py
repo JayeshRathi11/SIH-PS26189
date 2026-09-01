@@ -21,10 +21,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for Frontend development
+# Enable CORS for the frontend dev server. allow_origins=["*"] combined
+# with allow_credentials=True is both rejected by browsers per the CORS
+# spec and unnecessarily permissive for a system handling investigative
+# data -- restrict to an explicit, configurable allowlist instead.
+cors_origins = [o.strip() for o in os.getenv(
+    "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

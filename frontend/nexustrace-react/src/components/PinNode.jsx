@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-export default function PinNode({ entity, selected, onSelect, onDrag, isHighlighted, isDimmed }) {
+export default function PinNode({ entity, selected, onSelect, onDrag, isHighlighted, isDimmed, sizeFactor = 0 }) {
   const draggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const movedRef = useRef(false);
@@ -37,13 +37,13 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
 
   let customBorder = undefined;
   if (selected) {
-    customBorder = '2px solid #3B82F6';
+    customBorder = '2px solid var(--info)';
   } else if (isHighlighted) {
-    customBorder = '2px solid #F59E0B';
+    customBorder = '2px solid var(--tag-amber)';
   } else if (isConfirmed) {
-    customBorder = '2px solid #22C55E';
+    customBorder = '2px solid var(--stamp-green)';
   } else if (isRejected) {
-    customBorder = '1px dashed #EF4444';
+    customBorder = '1px dashed var(--stamp-red)';
   }
 
   return (
@@ -52,6 +52,12 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
       style={{
         left: entity.x,
         top: entity.y,
+        // Scale 0.85x-1.35x by relative centrality, anchored at the pin dot
+        // (7px above top-center) so higher-ranked entities visually stand
+        // out without shifting where their edges connect on the board.
+        transform: `scale(${(0.85 + sizeFactor * 0.5).toFixed(3)})`,
+        transformOrigin: '50% -7px',
+        zIndex: Math.round(sizeFactor * 10),
         opacity: isDimmed ? 0.35 : (isRejected ? 0.5 : 1),
         border: customBorder,
         boxShadow: isHighlighted ? '0 0 12px rgba(245, 158, 11, 0.6)' : undefined,
@@ -63,8 +69,8 @@ export default function PinNode({ entity, selected, onSelect, onDrag, isHighligh
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div className="pname">{entity.shortName}</div>
-        {isConfirmed && <span style={{ color: '#22C55E', fontSize: '0.75rem', fontWeight: 800 }}>✓</span>}
-        {isRejected && <span style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 800 }}>✗</span>}
+        {isConfirmed && <span style={{ color: 'var(--stamp-green)', fontSize: '0.75rem', fontWeight: 800 }}>✓</span>}
+        {isRejected && <span style={{ color: 'var(--stamp-red)', fontSize: '0.75rem', fontWeight: 800 }}>✗</span>}
       </div>
       <div className="prole">{entity.role}</div>
       <div className="pscore">CENTRALITY {typeof entity.centrality === 'number' ? entity.centrality.toFixed(2) : entity.centrality}</div>

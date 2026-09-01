@@ -54,6 +54,31 @@ def extract_text_from_docx(docx_path: Path) -> str:
         print(f"[Docx Extractor Error] Failed to read {docx_path}: {e}")
         return ""
 
+def extract_text_from_pdf(pdf_path) -> str:
+    """
+    Extracts raw text from a PDF file. Requires the `pypdf` package (see
+    backend/requirements.txt) -- unlike the docx/txt extractors, PDF parsing
+    has no reasonable dependency-free implementation, so this raises a clear
+    error if pypdf isn't installed rather than silently returning empty text.
+    Accepts either a filesystem path or a file-like object (e.g. BytesIO).
+    """
+    try:
+        from pypdf import PdfReader
+    except ImportError as e:
+        raise RuntimeError(
+            "PDF extraction requires the 'pypdf' package. Install it with "
+            "'pip install pypdf' (already listed in backend/requirements.txt)."
+        ) from e
+    try:
+        reader = PdfReader(pdf_path)
+        pages_text = []
+        for page in reader.pages:
+            pages_text.append(page.extract_text() or "")
+        return "\n".join(pages_text)
+    except Exception as e:
+        print(f"[PDF Extractor Error] Failed to read {pdf_path}: {e}")
+        return ""
+
 def import_and_prepare_dataset():
     """
     Imports all datasets from dataset/ into data/raw_text/ and data/ground_truth/

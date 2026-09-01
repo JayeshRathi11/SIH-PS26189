@@ -49,6 +49,15 @@ def build_graph_and_compute_analytics(entities_dict: Dict[str, Any], relationshi
     top_hubs = analytics.get_ranked_key_influencers(top_n=500)
     hubs_lookup = {h["entity_id"]: h for h in top_hubs}
 
+    # Write computed centrality back onto each entity in place. Without this,
+    # hub_score/community_cluster only ever reached Neo4j below (optional, may
+    # not be running) and every entity persisted to SQLite via
+    # upsert_resolved_graph() kept the flat 0.05 default forever.
+    for cid, meta in entities_dict.items():
+        h_data = hubs_lookup.get(cid, {})
+        meta["hub_score"] = h_data.get("combined_hub_score", 0.05)
+        meta["community_cluster"] = h_data.get("community_cluster", 0)
+
     # Load into Neo4j if available
     neo4j = Neo4jClient()
     if neo4j.connect():

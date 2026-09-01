@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CaseFolder from './CaseFolder';
 import EvaluationPanel from './EvaluationPanel';
-import { runPipeline } from '../api/client';
+import { runPipeline, uploadCaseDocument } from '../api/client';
 
-export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCases, onAddCase, isOpen }) {
+export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCases, onAddCase, isOpen, activeFilter, onFilterChange }) {
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCaseId, setNewCaseId] = useState('');
   const [newCaseTitle, setNewCaseTitle] = useState('');
+  const [newCaseFiles, setNewCaseFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   const filteredCases = cases.filter(
     (c) =>
@@ -27,13 +28,13 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
     if (!pollingJobId || !pollingDomain) return;
 
     let isMounted = true;
-    
+
     const poll = async () => {
       try {
         const statusRes = await fetch(`/api/pipeline/status/${pollingJobId}`);
         if (!statusRes.ok) throw new Error('Failed to fetch status');
         const statusData = await statusRes.json();
-        
+
         if (!isMounted) return;
         failureCountRef.current = 0; // reset on success
 
@@ -57,6 +58,8 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
           }
           setNewCaseId('');
           setNewCaseTitle('');
+          setNewCaseFiles([]);
+          if (fileInputRef.current) fileInputRef.current.value = '';
           setShowAddForm(false);
           setPollingStatus('');
           setPollingJobId(null);
@@ -99,13 +102,24 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
     const domainTitle = newCaseTitle.trim();
     if (!domainId || !domainTitle) return;
 
-    setPollingStatus('Starting pipeline...');
     try {
-      // For a truly new case, we'd use the raw fetch, but since we are mapping cases to domains:
-      // We will assume runPipeline supports it or we just use raw fetch for custom ones.
-      // Actually, since client.js enforces CASE_TO_DOMAIN_MAP, we must use runPipeline.
-      const data = await runPipeline(domainId);
-      
+      let data;
+      if (newCaseFiles.length > 0) {
+        // One or more source documents (FIR / case files) were attached:
+        // send them to the upload endpoint so the pipeline extracts
+        // entities/relationships from their actual text instead of
+        // running on nothing.
+        setPollingStatus(
+          newCaseFiles.length === 1
+            ? 'Uploading document & starting pipeline...'
+            : `Uploading ${newCaseFiles.length} documents & starting pipeline...`
+        );
+        data = await uploadCaseDocument(domainId, newCaseFiles);
+      } else {
+        setPollingStatus('Starting pipeline...');
+        data = await runPipeline(domainId);
+      }
+
       failureCountRef.current = 0;
       setPollingDomain({ id: domainId, title: domainTitle });
       setPollingJobId(data.job_id);
@@ -120,7 +134,7 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
     setPollingStatus('Starting pipeline for active case...');
     try {
       const data = await runPipeline(activeCaseId);
-      
+
       failureCountRef.current = 0;
       const activeCase = cases.find(c => c.id === activeCaseId);
       setPollingDomain({ id: activeCaseId, title: activeCase?.title || 'Active Case' });
@@ -153,20 +167,32 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
           <span
             key={f}
             className={`filter-chip ${activeFilter === f ? 'active' : ''}`}
-            onClick={() => setActiveFilter(f)}
+            onClick={() => onFilterChange(f)}
+            title={
+              f === 'High Risk'
+                ? 'Entities with the highest computed centrality (hub score) in the current view'
+                : f === 'All'
+                ? 'Show every entity at full opacity'
+                : `Dim every entity that is not a ${f.slice(0, -1)}`
+            }
           >
             {f}
           </span>
         ))}
       </div>
+      {activeFilter !== 'All' && (
+        <div style={{ padding: '0 16px 10px', fontSize: '0.72rem', color: 'var(--ink-soft)' }}>
+          Non-matching entities are dimmed on the corkboard.
+        </div>
+      )}
 
       <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '16px' }}>
         Open Cases
-        <button onClick={handleRunActivePipeline} disabled={!!pollingStatus} style={{ fontSize: '0.7rem', padding: '4px 8px', background: 'var(--accent, #646cff)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <button className="btn btn-info" onClick={handleRunActivePipeline} disabled={!!pollingStatus} style={{ fontSize: '0.68rem', padding: '4px 9px' }}>
           Run Pipeline
         </button>
       </h2>
-      {pollingStatus && <div style={{ padding: '0 16px 12px', fontSize: '0.8rem', color: '#ff9800' }}>{pollingStatus}</div>}
+      {pollingStatus && <div style={{ padding: '0 16px 12px', fontSize: '0.8rem', color: 'var(--tag-amber)' }}>{pollingStatus}</div>}
       {filteredCases.map((c) => {
         const originalIndex = cases.findIndex((x) => x.id === c.id);
         return (
@@ -198,13 +224,65 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
               value={newCaseTitle}
               onChange={(e) => setNewCaseTitle(e.target.value)}
             />
+
+            <label
+              htmlFor="new-case-file"
+              style={{
+                display: 'block',
+                marginTop: '4px',
+                padding: '8px 10px',
+                border: '1px dashed var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.78rem',
+                color: 'var(--ink-soft)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: 'var(--paper)'
+              }}
+            >
+              {newCaseFiles.length > 0
+                ? `📎 ${newCaseFiles.length} file${newCaseFiles.length > 1 ? 's' : ''} attached`
+                : '📄 Attach FIR / Case Document(s) (.txt, .docx, .pdf) — optional'}
+            </label>
+            <input
+              id="new-case-file"
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.docx,.pdf"
+              multiple
+              onChange={(e) => setNewCaseFiles(Array.from(e.target.files || []))}
+              style={{ display: 'none' }}
+            />
+            {newCaseFiles.length > 0 && (
+              <ul style={{ margin: '2px 0 0', padding: '0 0 0 16px', fontSize: '0.72rem', color: 'var(--ink-soft)' }}>
+                {newCaseFiles.map((f, i) => (
+                  <li key={`${f.name}-${i}`}>{f.name}</li>
+                ))}
+              </ul>
+            )}
+            {newCaseFiles.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ fontSize: '0.7rem', padding: '3px 8px', alignSelf: 'flex-start' }}
+                onClick={() => { setNewCaseFiles([]); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+              >
+                Remove attachment{newCaseFiles.length > 1 ? 's' : ''}
+              </button>
+            )}
+            {newCaseFiles.length === 0 && (
+              <div style={{ fontSize: '0.68rem', color: 'var(--ink-soft)' }}>
+                No document attached — the pipeline will run on the existing dataset for this case ID instead of extracting from a new source file.
+              </div>
+            )}
+
             <div className="add-case-form-actions">
               <button type="submit" disabled={!!pollingStatus}>Create</button>
-              <button type="button" onClick={() => { setShowAddForm(false); setPollingStatus(''); }} disabled={!!pollingStatus}>
+              <button type="button" onClick={() => { setShowAddForm(false); setPollingStatus(''); setNewCaseFiles([]); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={!!pollingStatus}>
                 Cancel
               </button>
             </div>
-            {pollingStatus && <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#888' }}>{pollingStatus}</div>}
+            {pollingStatus && <div style={{ marginTop: '10px', fontSize: '0.85rem', color: 'var(--ink-soft)' }}>{pollingStatus}</div>}
           </form>
         )}
       </div>

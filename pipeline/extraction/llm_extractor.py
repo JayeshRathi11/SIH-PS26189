@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import hashlib
 import time
 import threading
 from pathlib import Path
@@ -48,7 +49,14 @@ class LLMExtractor:
         Returns dict with "entities" and "relationships".
         Uses cache if available.
         """
-        cache_key = f"{doc_id}_{abs(hash(doc_text[:100]))}"
+        # NOTE: Python's built-in hash() is randomized per-process
+        # (PYTHONHASHSEED) unless explicitly pinned, so a cache keyed on
+        # hash(doc_text) would silently miss on every fresh run - the same
+        # document would never re-hit the cache from one process to the
+        # next. Use a stable content hash instead so the cache actually
+        # survives across pipeline runs.
+        text_digest = hashlib.sha256(doc_text[:100].encode("utf-8")).hexdigest()[:16]
+        cache_key = f"{doc_id}_{text_digest}"
         with self.lock:
             if cache_key in self.cache:
                 return self.cache[cache_key]

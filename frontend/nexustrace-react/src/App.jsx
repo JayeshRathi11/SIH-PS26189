@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Board from './components/Board';
 import DetailPanel from './components/DetailPanel';
 import LoginModal from './components/LoginModal';
+import LoginGate from './components/LoginGate';
 import PatternsDrawer from './components/PatternsDrawer';
-import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns } from './api/client';
+import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns, logoutUser } from './api/client';
 
 const INITIAL_CASES = [
   { id: 'case-all', caseId: 'GLOBAL-MASTER-00', title: '★ Unified Global Master Network (All Domains)', entities: '10 Domains', links: 'Resolved Hub', tag: 'Global' },
@@ -24,10 +25,11 @@ const INITIAL_CASES = [
 export default function App() {
   const [theme, setTheme] = useState('dark');
   const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(false); // opens on explicit entity selection, not by default
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false); // true once the initial session check resolves
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Cases & Graph state
@@ -38,6 +40,11 @@ export default function App() {
   const [selectedEntityId, setSelectedEntityId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Sidebar "Filters" chips (All / Persons / Orgs / High Risk) -- lifted up
+  // from Sidebar so Board can actually dim non-matching entities on the
+  // corkboard instead of the chips being purely decorative.
+  const [activeFilter, setActiveFilter] = useState('All');
 
   // Temporal Slider State
   const [temporalDate, setTemporalDate] = useState(null);
@@ -51,10 +58,23 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Load current user session
+  // Load current user session. authChecked flips true once this resolves
+  // (whether it found a valid session or not) so the login gate isn't
+  // flashed for a user who already has a valid token in localStorage.
   useEffect(() => {
-    fetchCurrentUser().then(setCurrentUser).catch(console.error);
+    fetchCurrentUser()
+      .then(setCurrentUser)
+      .catch((err) => {
+        console.error(err);
+        setCurrentUser(null);
+      })
+      .finally(() => setAuthChecked(true));
   }, []);
+
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+  };
 
   // Fetch Suspicious Patterns on case change
   useEffect(() => {
@@ -63,13 +83,19 @@ export default function App() {
       .catch((err) => console.log('[Patterns Notice]', err));
   }, [activeCaseId]);
 
-  // Fetch graph when active case or temporal date changes
+  // Fetch graph when active case or temporal date changes.
+  // Guarded against out-of-order responses: if the user switches cases
+  // again before this request resolves, its result is discarded instead
+  // of overwriting the newer case's data with a stale one.
+  const graphRequestIdRef = useRef(0);
   const loadGraph = useCallback(async () => {
     if (!activeCaseId) return;
+    const requestId = ++graphRequestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const { entities: newEntities, threads: newThreads } = await fetchCaseGraph(activeCaseId, temporalDate);
+      if (requestId !== graphRequestIdRef.current) return; // a newer request superseded this one
       setEntities(newEntities);
       setThreads(newThreads);
       setSelectedEntityId((prev) => {
@@ -77,10 +103,11 @@ export default function App() {
         return newEntities.length > 0 ? newEntities[0].id : null;
       });
     } catch (err) {
+      if (requestId !== graphRequestIdRef.current) return;
       console.error(err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (requestId === graphRequestIdRef.current) setLoading(false);
     }
   }, [activeCaseId, temporalDate]);
 
@@ -90,6 +117,11 @@ export default function App() {
 
   const activeCase = cases.find((c) => c.id === activeCaseId);
   const selectedEntity = entities.find((e) => e.id === selectedEntityId) || null;
+
+  const handleSelectEntity = (id) => {
+    setSelectedEntityId(id);
+    if (id) setRightOpen(true);
+  };
 
   const handleDrag = (id, x, y) => {
     setEntities((prev) => prev.map((e) => (e.id === id ? { ...e, x, y } : e)));
@@ -129,8 +161,34 @@ export default function App() {
     setPatternsDrawerOpen(false);
     if (pattern.target_entity) {
       setSelectedEntityId(pattern.target_entity);
+      setRightOpen(true);
     }
   };
+
+  // Gate the dashboard behind authentication. While the initial session
+  // check is in flight, render nothing but a bare themed splash so a user
+  // with a valid stored token never sees a flash of the login screen.
+  if (!authChecked) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--paper)', color: 'var(--ink-soft)', fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: '0.85rem', letterSpacing: '0.04em',
+      }}>
+        VERIFYING SESSION&hellip;
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <LoginGate
+        onAuthenticated={setCurrentUser}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+      />
+    );
+  }
 
   return (
     <div
@@ -149,6 +207,7 @@ export default function App() {
         caseLabel={activeCase?.title || 'Cross-Domain Crime Analytics'}
         currentUser={currentUser}
         onOpenAuthModal={() => setAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenPatternsDrawer={() => setPatternsDrawerOpen(true)}
         patternsCount={patterns.length}
         selectedEntity={selectedEntity}
@@ -161,6 +220,8 @@ export default function App() {
         onReorderCases={handleReorderCases}
         onAddCase={handleAddCase}
         isOpen={leftOpen}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
       />
 
       <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -178,13 +239,14 @@ export default function App() {
           entities={entities}
           threads={threads}
           selectedId={selectedEntityId}
-          onSelect={setSelectedEntityId}
+          onSelect={handleSelectEntity}
           onDrag={handleDrag}
           activeCase={activeCase}
           focusedPattern={focusedPattern}
           onClearPatternFocus={() => setFocusedPattern(null)}
           temporalDate={temporalDate}
           onTemporalDateChange={setTemporalDate}
+          activeFilter={activeFilter}
         />
       </div>
 

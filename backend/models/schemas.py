@@ -57,6 +57,7 @@ class PipelineJobResponse(BaseModel):
     total_relationships: int
     created_at: datetime
     error_message: Optional[str] = None
+    skipped_files: Optional[List[str]] = None
 
 class EvaluationScoreResponse(BaseModel):
     domain: str
