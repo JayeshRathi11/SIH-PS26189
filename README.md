@@ -29,56 +29,43 @@ NexusTrace analyzes fragmented, unstructured crime data (FIRs, call intercepts, 
 ## 📖 Complete Documentation & Operator Guides
 
 For comprehensive setup and feature walkthroughs:
-- 🚀 [**`docs/HOW_TO_RUN_AND_USE.md`**](file:///c:/Users/luuff/Desktop/SIH/docs/HOW_TO_RUN_AND_USE.md) — **Complete User, Operator & Setup Guide** (Step-by-step for Docker & Non-Docker setups, `.env` keys, starting all 3 servers, and full UI usage guide).
-- 📊 [**`docs/CURRENT_STATUS.md`**](file:///c:/Users/luuff/Desktop/SIH/docs/CURRENT_STATUS.md) — **Master Current Status & Architectural Reference** (9 FastAPI routers, 8 database tables, POLE schema, pattern detection algorithms).
+- 🚀 [**`docs/HOW_TO_RUN_AND_USE.md`**](docs/HOW_TO_RUN_AND_USE.md) — **Complete User, Operator & Setup Guide** (step-by-step setup, `.env` keys, starting both servers, and full UI usage guide).
 
 ---
 
-## Quick Start (3-Minute Setup)
+## Quick Start
 
-### 1. Configure Environment (`.env`)
-Create `.env` in the root folder:
-```ini
-GEMINI_API_KEY=your_gemini_api_key_here
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-DATABASE_URL=sqlite:///./nexustrace.db
-JWT_SECRET_KEY=nexustrace_mha_ncrb_super_secret_jwt_key_2026
-DATA_DIR=./data
-PROCESSED_DIR=./data/processed
-```
+See [`docs/HOW_TO_RUN_AND_USE.md`](docs/HOW_TO_RUN_AND_USE.md) for the full
+step-by-step setup and usage guide. The short version:
 
-### 2. Start Neo4j (Docker OR Local)
-- **With Docker:** `docker-compose up -d neo4j`
-- **Without Docker:** Start [Neo4j Desktop](https://neo4j.com/download/) OR use free [Neo4j AuraDB](https://neo4j.com/cloud/platform/aura-graph-database/) OR run in standalone SQLite mode.
-
-### 3. Run Pipeline (One-Time Ingestion)
 ```powershell
-python -m venv venv
+# 1. Activate the venv and install dependencies
 .\venv\Scripts\Activate.ps1
-pip install -r pipeline/requirements.txt
 pip install -r backend/requirements.txt
+pip install -r pipeline/requirements.txt
 
-python pipeline/run_pipeline.py
-```
+# 2. Configure environment
+copy .env.example .env
+# then edit .env and set JWT_SECRET_KEY (generate with:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+# ) -- the backend refuses to start without it. GEMINI_API_KEY is optional
+# but needed for real document extraction.
 
-### 4. Start Backend Service
-```powershell
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+# 3. Start the backend
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - REST API & Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 5. Start React Frontend
-In a new terminal:
 ```powershell
+# 4. In a new terminal, start the frontend
 cd frontend\nexustrace-react
 npm install
 npm run dev
 ```
 - Investigator Dashboard: [http://localhost:5173/](http://localhost:5173/)
+
+Neo4j is optional -- analytics run on NetworkX + SQLite regardless, and the
+pipeline silently skips the Neo4j mirroring step if it isn't reachable.
 
 ---
 
