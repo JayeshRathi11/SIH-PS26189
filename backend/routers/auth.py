@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from backend.db import get_db, User, AuditLog, UserRole, verify_password, hash_password
+from backend.db import get_db, User, AuditLog, UserRole, verify_password, hash_password, compute_audit_hash, GENESIS_HASH
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
@@ -50,9 +50,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def log_audit(db: Session, action: str, username: str = None, user_id: str = None,
               resource_type: str = None, resource_id: str = None, details: str = None,
-              ip_address: str = None, status: str = "SUCCESS"):
-    """Helper to log security and investigative audit trails."""
+              ip_address: str = None, status: str = "SUCCESS", content_hash: str = None):
+    """
+    Logs security and investigative audit trails -- and, since this is the
+    single choke point every audit entry passes through, this is also
+    where the tamper-evident hash chain is extended: each new row links
+    to the previous one via prev_hash/entry_hash (see compute_audit_hash
+    in backend/db.py). content_hash lets a caller attach the SHA-256 of a
+    specific artifact this entry concerns (an uploaded document, an
+    exported dossier PDF) so it's baked into that entry's hash too.
+    """
     try:
+        # Chain from whichever row was chronologically last. Ordering by
+        # timestamp is good enough at hackathon/demo scale (datetime.
+        # utcnow() has microsecond resolution and this app isn't under
+        # heavy concurrent write load) -- a production hardening pass
+        # would instead chain off a DB-generated monotonic sequence
+        # number under a row lock, to remove any ambiguity under
+        # concurrent writers.
+        last_entry = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).first()
+        prev_hash = last_entry.entry_hash if (last_entry and last_entry.entry_hash) else GENESIS_HASH
+        entry_timestamp = datetime.utcnow()
+        entry_hash = compute_audit_hash(
+            prev_hash, entry_timestamp, user_id, username, action,
+            resource_type, resource_id, details, status, content_hash
+        )
         log = AuditLog(
             user_id=user_id,
             username=username,
@@ -61,7 +83,11 @@ def log_audit(db: Session, action: str, username: str = None, user_id: str = Non
             resource_id=resource_id,
             details=details,
             ip_address=ip_address,
-            status=status
+            status=status,
+            content_hash=content_hash,
+            prev_hash=prev_hash,
+            entry_hash=entry_hash,
+            timestamp=entry_timestamp
         )
         db.add(log)
         db.commit()

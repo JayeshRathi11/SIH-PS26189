@@ -98,6 +98,23 @@ export function logoutUser() {
   setAuthToken(null);
 }
 
+// Verifies the tamper-evident audit/custody hash chain (see backend/
+// routers/audit.py). Restricted to AUDITOR / OFFICER_IN_CHARGE server-side;
+// a 403 here just means the logged-in role can't see it, not that
+// anything's wrong with the chain itself.
+export async function verifyAuditChain() {
+  const response = await fetch('/api/audit/verify', { headers: getAuthHeaders() });
+  if (response.status === 403) {
+    const err = new Error('Only an Auditor or Officer-in-Charge can verify the custody chain.');
+    err.forbidden = true;
+    throw err;
+  }
+  if (!response.ok) {
+    throw new Error('Failed to verify audit chain.');
+  }
+  return await response.json();
+}
+
 // ----------------------------------------------------
 // Graph & Analytics API
 // ----------------------------------------------------

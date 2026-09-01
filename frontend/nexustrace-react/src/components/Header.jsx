@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { downloadDossier } from '../api/client';
+import { downloadDossier, verifyAuditChain } from '../api/client';
 
 export default function Header({
   theme, onToggleTheme,
@@ -13,6 +13,9 @@ export default function Header({
   selectedEntity
 }) {
   const [now, setNow] = useState(new Date());
+  // null = not checked yet this session; otherwise the last /audit/verify result.
+  const [chainStatus, setChainStatus] = useState(null);
+  const [chainChecking, setChainChecking] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -31,6 +34,20 @@ export default function Header({
       await downloadDossier(selectedEntity?.id || 'ENT_HUB_IQBAL_ANSARI', selectedEntity?.name);
     } catch (err) {
       alert(err.message || 'Failed to download court dossier.');
+    }
+  };
+
+  const canVerifyChain = currentUser?.role === 'AUDITOR' || currentUser?.role === 'OFFICER_IN_CHARGE';
+
+  const handleVerifyChain = async () => {
+    setChainChecking(true);
+    try {
+      const result = await verifyAuditChain();
+      setChainStatus(result);
+    } catch (err) {
+      setChainStatus({ valid: false, message: err.message, forbidden: !!err.forbidden });
+    } finally {
+      setChainChecking(false);
     }
   };
 
@@ -87,6 +104,36 @@ export default function Header({
         >
           <span aria-hidden="true">📄</span> Export Brief
         </button>
+
+        {canVerifyChain && (
+          <button
+            type="button"
+            className="header-action accent-info"
+            onClick={handleVerifyChain}
+            disabled={chainChecking}
+            title="Recompute and verify the tamper-evident audit/custody hash chain"
+          >
+            <span aria-hidden="true">🔗</span> {chainChecking ? 'Verifying…' : 'Verify Chain'}
+          </button>
+        )}
+        {chainStatus && (
+          <span
+            title={chainStatus.message}
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: 'var(--radius-sm)',
+              color: '#fff',
+              background: chainStatus.valid ? 'var(--stamp-green)' : 'var(--stamp-red)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {chainStatus.valid
+              ? `✓ Chain Verified (${chainStatus.total_entries})`
+              : (chainStatus.forbidden ? '⚠ Not Authorized' : '⚠ Tampering Detected')}
+          </span>
+        )}
 
         <div className="header-divider" />
 

@@ -1,5 +1,7 @@
 import os
 import uuid
+import hashlib
+import json as _json
 from enum import Enum
 import bcrypt
 from datetime import datetime
@@ -9,7 +11,11 @@ from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nexustrace.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# check_same_thread is a SQLite-only pysqlite option -- psycopg2 (Postgres/
+# Supabase) rejects it as an unknown connection argument, so only pass it
+# when we're actually still pointed at a local sqlite:// file.
+_engine_kwargs = {"connect_args": {"check_same_thread": False}} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -24,6 +30,37 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(plain_password.encode("utf-8")[:72], hashed_password.encode("utf-8"))
     except Exception:
         return False
+
+# Fixed starting point for the audit hash-chain -- the first row in the
+# table chains from this instead of a real previous entry_hash.
+GENESIS_HASH = "0" * 64
+
+def compute_audit_hash(prev_hash, timestamp, user_id, username, action,
+                        resource_type, resource_id, details, status, content_hash) -> str:
+    """
+    Deterministically hashes one audit-log entry together with the
+    previous entry's hash. Called on every insert (see log_audit() in
+    backend/routers/auth.py) and again by /audit/verify (backend/routers/
+    audit.py), which recomputes every row's hash from its stored field
+    values and confirms it still matches what was stored -- if a row was
+    edited or deleted after the fact, the recomputed hash (or the next
+    row's prev_hash pointer) won't match, and the break is reported.
+    Field order is part of the hash input and must never change without
+    invalidating every previously stored hash.
+    """
+    payload = _json.dumps({
+        "prev_hash": prev_hash,
+        "timestamp": timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp),
+        "user_id": user_id,
+        "username": username,
+        "action": action,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "details": details,
+        "status": status,
+        "content_hash": content_hash,
+    }, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 class UserRole(str, Enum):
     INVESTIGATOR = "INVESTIGATOR"
@@ -41,6 +78,18 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class AuditLog(Base):
+    """
+    Doubles as the system's tamper-evident custody ledger. Every row is
+    cryptographically chained to the one before it (see log_audit() in
+    backend/routers/auth.py, which computes prev_hash/entry_hash on every
+    insert): entry_hash = sha256(prev_hash + canonical(this row's fields)).
+    Editing or deleting any row breaks that link for everything after it,
+    which is exactly what /audit/verify (backend/routers/audit.py) checks
+    for. This is a hash chain, not a distributed blockchain -- there's no
+    multi-node consensus -- but it's the same core primitive (a Merkle-
+    style chain of hashes) that gives blockchains their tamper-evidence,
+    applied here as NexusTrace's evidentiary chain-of-custody log.
+    """
     __tablename__ = "audit_logs"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -52,6 +101,16 @@ class AuditLog(Base):
     details = Column(Text, nullable=True)
     ip_address = Column(String, nullable=True)
     status = Column(String, default="SUCCESS")
+    # Optional hash of a specific artifact this entry concerns (e.g. an
+    # uploaded document's or an exported dossier PDF's SHA-256), separate
+    # from the chain-linking hashes below.
+    content_hash = Column(String, nullable=True)
+    # Chain-linking fields: prev_hash is the entry_hash of the row that
+    # was chronologically last when this row was written; entry_hash is
+    # this row's own hash. The very first row in the table chains from a
+    # fixed genesis value (64 zeros) instead of a previous row.
+    prev_hash = Column(String, nullable=True)
+    entry_hash = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class EvidenceLedgerRecord(Base):
@@ -233,13 +292,16 @@ def migrate_columns():
     from sqlalchemy import text
     with engine.connect() as conn:
         migrations = [
-            ("entities", "verified_by_officer", "BOOLEAN DEFAULT 0"),
+            ("entities", "verified_by_officer", "BOOLEAN DEFAULT FALSE"),
             ("entities", "status", "VARCHAR DEFAULT 'ACTIVE'"),
-            ("relationships", "verified_by_officer", "BOOLEAN DEFAULT 0"),
+            ("relationships", "verified_by_officer", "BOOLEAN DEFAULT FALSE"),
             ("relationships", "weight_multiplier", "FLOAT DEFAULT 1.0"),
             ("relationships", "status", "VARCHAR DEFAULT 'ACTIVE'"),
             ("relationships", "timestamp", "VARCHAR"),
-            ("document_metadata", "sha256_hash", "VARCHAR")
+            ("document_metadata", "sha256_hash", "VARCHAR"),
+            ("audit_logs", "content_hash", "VARCHAR"),
+            ("audit_logs", "prev_hash", "VARCHAR"),
+            ("audit_logs", "entry_hash", "VARCHAR")
         ]
         for table, col, col_type in migrations:
             try:

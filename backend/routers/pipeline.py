@@ -1,5 +1,6 @@
 import io
 import uuid
+import hashlib
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, HTTPException, UploadFile, File, Form
@@ -11,7 +12,7 @@ from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
 from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf
 from backend.db import get_db, JobRecord, SessionLocal, User, UserRole
-from backend.routers.auth import require_role
+from backend.routers.auth import require_role, log_audit
 from pipeline.run_pipeline import run_pipeline_end_to_end
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Execution"])
@@ -87,6 +88,11 @@ def trigger_pipeline(
     db.commit()
     db.refresh(job)
 
+    log_audit(
+        db, action="PIPELINE_RUN_TRIGGERED", username=current_user.username, user_id=current_user.id,
+        resource_type="JOB", resource_id=job_id, details=f"domain={target_domain}"
+    )
+
     background_tasks.add_task(execute_pipeline_task, job_id, target_domain, raw_text)
 
     return PipelineJobResponse(
@@ -134,6 +140,7 @@ async def upload_case_document(
     """
     combined_parts = []
     skipped = []
+    accepted_files = []  # [(filename, sha256_hash), ...] -- for the audit chain below
 
     for f in files:
         filename = f.filename or "uploaded_document"
@@ -160,6 +167,7 @@ async def upload_case_document(
             continue
 
         combined_parts.append(f"=== Document: {filename} ===\n{text}")
+        accepted_files.append((filename, hashlib.sha256(raw_bytes).hexdigest()))
 
     if not combined_parts:
         detail = "Could not extract any text from the uploaded document(s)."
@@ -179,6 +187,22 @@ async def upload_case_document(
     db.add(job)
     db.commit()
     db.refresh(job)
+
+    # One chained audit entry per accepted document, each carrying that
+    # document's own SHA-256 as content_hash -- this is the chain-of-
+    # custody record that a document with this exact content entered the
+    # system, under this user, at this time, tied into the wider chain.
+    for fname, fhash in accepted_files:
+        log_audit(
+            db, action="DOCUMENT_UPLOADED", username=current_user.username, user_id=current_user.id,
+            resource_type="DOCUMENT", resource_id=fname, details=f"domain={domain}, job={job_id}",
+            content_hash=fhash
+        )
+    if skipped:
+        log_audit(
+            db, action="DOCUMENT_UPLOAD_SKIPPED", username=current_user.username, user_id=current_user.id,
+            resource_type="DOCUMENT", resource_id=job_id, details="; ".join(skipped), status="PARTIAL"
+        )
 
     background_tasks.add_task(execute_pipeline_task, job_id, domain, raw_text)
 

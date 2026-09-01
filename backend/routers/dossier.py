@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.db import get_db, EntityRecord, RelationshipRecord, DocumentMetadata, EvidenceLedgerRecord, User, UserRole
-from backend.routers.auth import get_current_user, require_role
+import hashlib
+from backend.routers.auth import get_current_user, require_role, log_audit
 from backend.services.dossier_service import CourtDossierGenerator
 
 router = APIRouter(prefix="/dossier", tags=["Court Dossier Export"])
@@ -85,6 +86,16 @@ def generate_dossier(
     )
 
     filename = f"NexusTrace_Court_Dossier_{entity_rec.canonical_name.replace(' ', '_')}.pdf"
+
+    # Every court-dossier export is evidence leaving the system for
+    # outside use -- chain-log it with the exported PDF's own SHA-256 so
+    # the ledger can later prove exactly which bytes were exported, by
+    # whom, and when, without needing to keep the PDF itself in the chain.
+    log_audit(
+        db, action="DOSSIER_EXPORTED", username=current_user.username, user_id=current_user.id,
+        resource_type="ENTITY", resource_id=entity_rec.id, details=f"filename={filename}",
+        content_hash=hashlib.sha256(pdf_bytes).hexdigest()
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -154,6 +165,16 @@ def download_dossier_by_id(
     )
 
     filename = f"NexusTrace_Court_Dossier_{entity_rec.canonical_name.replace(' ', '_')}.pdf"
+
+    # Every court-dossier export is evidence leaving the system for
+    # outside use -- chain-log it with the exported PDF's own SHA-256 so
+    # the ledger can later prove exactly which bytes were exported, by
+    # whom, and when, without needing to keep the PDF itself in the chain.
+    log_audit(
+        db, action="DOSSIER_EXPORTED", username=current_user.username, user_id=current_user.id,
+        resource_type="ENTITY", resource_id=entity_rec.id, details=f"filename={filename}",
+        content_hash=hashlib.sha256(pdf_bytes).hexdigest()
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
