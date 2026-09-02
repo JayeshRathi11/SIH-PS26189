@@ -4,6 +4,9 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from backend.db import init_db, SessionLocal, upsert_resolved_graph
 from pipeline.config import DOMAINS, EntityType, MasterRelationshipType
 from pipeline.graph.analytics import GraphAnalyticsEngine
