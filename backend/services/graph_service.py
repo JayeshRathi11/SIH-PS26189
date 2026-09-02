@@ -213,13 +213,27 @@ class GraphService:
                     confidence=r.get("confidence", 0.9)
                 )
 
-        # Normalize source & target if names were passed instead of IDs
-        s_id = source_id
-        t_id = target_id
+        # Normalize source & target if names or aliases were passed instead of IDs
+        s_id = source_id.strip()
+        t_id = target_id.strip()
+        
+        s_lower = s_id.lower()
+        t_lower = t_id.lower()
+
         for cid, meta in entity_map.items():
-            if meta.get("canonical_name", "").lower() == source_id.lower():
+            cid_lower = cid.lower()
+            name_lower = meta.get("canonical_name", "").lower()
+            alias_lowers = [a.lower() for a in meta.get("aliases", [])]
+            all_variants = [name_lower, cid_lower] + alias_lowers
+
+            if s_lower in all_variants or any(s_lower == v for v in all_variants):
                 s_id = cid
-            if meta.get("canonical_name", "").lower() == target_id.lower():
+            elif not G.has_node(s_id) and any(s_lower in v and len(s_lower) > 3 for v in all_variants):
+                s_id = cid
+
+            if t_lower in all_variants or any(t_lower == v for v in all_variants):
+                t_id = cid
+            elif not G.has_node(t_id) and any(t_lower in v and len(t_lower) > 3 for v in all_variants):
                 t_id = cid
 
         if not G.has_node(s_id) or not G.has_node(t_id):
@@ -295,3 +309,72 @@ class GraphService:
             ),
             "paths": detailed_paths
         }
+
+    def get_network_bridges(self, domain_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        entity_map = self._load_entity_map()
+        relationships = self._load_relationships()
+
+        G = nx.Graph()
+        for cid, meta in entity_map.items():
+            if domain_filter and domain_filter not in meta.get("domains", []):
+                continue
+            G.add_node(cid, name=meta.get("canonical_name", cid), type=meta.get("type", "UNKNOWN"))
+
+        for r in relationships:
+            src = str(r.get("source_id", ""))
+            tgt = str(r.get("target_id", ""))
+            dom = r.get("domain", "")
+            if domain_filter and domain_filter != dom:
+                continue
+            if src and tgt and G.has_node(src) and G.has_node(tgt):
+                G.add_edge(
+                    src, tgt,
+                    rel_type=r.get("relationship_type", "ASSOCIATE_OF"),
+                    domain=dom,
+                    confidence=r.get("confidence", 0.9)
+                )
+
+        bridges = []
+        # Find all bridges in the network (critical chokepoints)
+        try:
+            for u, v in nx.bridges(G):
+                edge_data = G.get_edge_data(u, v) or {}
+                u_meta = entity_map.get(u, {})
+                v_meta = entity_map.get(v, {})
+                bridges.append({
+                    "source": u,
+                    "source_name": u_meta.get("canonical_name", u),
+                    "target": v,
+                    "target_name": v_meta.get("canonical_name", v),
+                    "source_type": u_meta.get("type", "UNKNOWN"),
+                    "target_type": v_meta.get("type", "UNKNOWN"),
+                    "relationship_type": edge_data.get("rel_type", "ASSOCIATE_OF"),
+                    "domain": edge_data.get("domain", "general"),
+                    "confidence": edge_data.get("confidence", 0.9)
+                })
+        except Exception as e:
+            print(f"[GraphService Warning] Bridge calculation error: {e}")
+
+        return bridges
+
+    def export_graph(self, domain_filter: Optional[str] = None, format: str = "json") -> Dict[str, Any]:
+        graph_data = self.get_full_graph(domain_filter=domain_filter)
+
+        if format.lower() == "graphml":
+            G = nx.Graph()
+            for n in graph_data["nodes"]:
+                G.add_node(n["id"], label=str(n.get("canonical_name", n["id"])), entity_type=str(n.get("type", "UNKNOWN")))
+            for e in graph_data["edges"]:
+                G.add_edge(e["source"], e["target"], relationship=str(e.get("relationship_type", "ASSOCIATE_OF")), domain=str(e.get("domain", "general")))
+
+            import io
+            bio = io.BytesIO()
+            nx.write_graphml(G, bio)
+            return {"format": "graphml", "content": bio.getvalue().decode("utf-8")}
+
+        # Default JSON format
+        return {
+            "format": "json",
+            "content": json.dumps(graph_data, indent=2)
+        }
+

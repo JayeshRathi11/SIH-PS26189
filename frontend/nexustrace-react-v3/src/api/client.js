@@ -207,6 +207,14 @@ export async function runPipeline(caseId) {
   return await response.json();
 }
 
+export async function fetchJobStatus(jobId) {
+  const response = await fetch(`/api/pipeline/status/${encodeURIComponent(jobId)}`, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch job status: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
 // Uploads one or more real case documents (.txt/.docx/.pdf) and runs them
 // through live extraction, for a genuinely NEW case -- unlike runPipeline()
 // above, which only re-runs one of the 10 pre-loaded demo domains. This is
@@ -349,10 +357,26 @@ export function getDossierDownloadUrl(entityId) {
 // ----------------------------------------------------
 // Security & Audit Logs API
 // ----------------------------------------------------
-export async function fetchAuditLogs(skip = 0, limit = 50) {
-  const response = await fetch(`/api/auth/audit-logs?skip=${skip}&limit=${limit}`, { headers: getAuthHeaders() });
+export async function fetchAuditLogs(limit = 100, action = null) {
+  const params = new URLSearchParams();
+  if (limit) params.append('limit', limit);
+  if (action) params.append('action', action);
+
+  // Try /api/audit/log, fallback to /api/auth/audit-logs
+  let response = await fetch(`/api/audit/log?${params.toString()}`, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    response = await fetch(`/api/auth/audit-logs?limit=${limit}`, { headers: getAuthHeaders() });
+  }
   if (!response.ok) {
     throw new Error(`Failed to fetch audit logs: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+export async function verifyAuditChain() {
+  const response = await fetch('/api/audit/verify', { headers: getAuthHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to verify audit chain: ${response.statusText}`);
   }
   return await response.json();
 }

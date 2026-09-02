@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
 function PinNode({
   entity,
@@ -10,6 +10,7 @@ function PinNode({
   panZoomRef,
   viewportRef
 }) {
+  const [isHovered, setIsHovered] = useState(false);
   const draggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const movedRef = useRef(false);
@@ -88,6 +89,23 @@ function PinNode({
     ? entity.centrality.toFixed(2)
     : entity.centrality;
 
+  // Check if this node represents a phone or encrypted number
+  const isPhoneNumber = entity.type === 'phone' ||
+    entity.id?.startsWith('ENT_PHONE') ||
+    /^[+]?[\d\s-]{7,}$/.test(entity.name || '') ||
+    /^[+]?[\d\s-]{7,}$/.test(entity.shortName || '');
+
+  const rawName = entity.shortName || entity.name;
+  const isRevealed = isHovered || selected;
+
+  const displayName = isPhoneNumber
+    ? (isRevealed ? rawName : 'Unknown')
+    : rawName;
+
+  const displayRole = isPhoneNumber
+    ? (isRevealed ? '📞 Decrypted Line' : '🔒 Intercept (Hover)')
+    : (entity.role || entity.typeLabel);
+
   return (
     <div
       className={nodeClasses}
@@ -97,10 +115,17 @@ function PinNode({
       }}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
-      title="Drag to reposition on canvas · Click for profile"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      title={isPhoneNumber ? `Phone Intercept: ${rawName}` : 'Drag to reposition on canvas · Click for profile'}
     >
       <div className="pname-row">
-        <div className="pname">{entity.shortName || entity.name}</div>
+        <div className="pname" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {isPhoneNumber && !isRevealed && (
+            <span style={{ fontSize: '10px', opacity: 0.75 }}>🔒</span>
+          )}
+          <span>{displayName}</span>
+        </div>
         {isConfirmed && (
           <span style={{ color: 'var(--stamp-green)', fontWeight: 800, fontSize: '11px' }} title="Verified by Officer">
             ✓
@@ -113,7 +138,9 @@ function PinNode({
         )}
       </div>
 
-      <div className="prole">{entity.role || entity.typeLabel}</div>
+      <div className="prole" style={{ color: isPhoneNumber && isRevealed ? 'var(--tag-amber)' : undefined }}>
+        {displayRole}
+      </div>
 
       <div className="pscore">
         <span>CENTRALITY</span>

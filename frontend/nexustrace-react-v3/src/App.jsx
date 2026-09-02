@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import NavigationSidebar from './components/NavigationSidebar';
 import Board from './components/Board';
 import LoginModal from './components/LoginModal';
+import LoginGate from './components/LoginGate';
+import EntityJanamKundliModal from './components/EntityJanamKundliModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import TimelinePage from './pages/TimelinePage';
 import CaseFilesPage from './pages/CaseFilesPage';
@@ -50,13 +52,15 @@ export default function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('nexustrace_theme') || 'light';
   });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Auth state
+  // Auth state - Compulsory login on fresh start
   const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Cases & Graph state
@@ -68,8 +72,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Temporal Slider State
-  const [temporalDate, setTemporalDate] = useState(null);
+  // Full Profile Janam Kundli Modal State
+  const [janamKundliEntity, setJanamKundliEntity] = useState(null);
 
   // Suspicious Patterns State
   const [patterns, setPatterns] = useState([]);
@@ -80,15 +84,44 @@ export default function App() {
     localStorage.setItem('nexustrace_theme', theme);
   }, [theme]);
 
-  // Load current user session
+  // Session verification: If not active in this session, show LoginGate compulsory
   useEffect(() => {
-    fetchCurrentUser().then(setCurrentUser).catch(console.error);
+    const sessionActive = sessionStorage.getItem('nexustrace_session_active');
+    if (!sessionActive) {
+      setCurrentUser(null);
+      setAuthChecked(true);
+      return;
+    }
+
+    fetchCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+      })
+      .catch((err) => {
+        console.warn('[Session Check Notice]', err);
+        setCurrentUser(null);
+        sessionStorage.removeItem('nexustrace_session_active');
+      })
+      .finally(() => {
+        setAuthChecked(true);
+      });
   }, []);
 
-  // Case list is a real backend table now (backend/routers/cases.py), not just
-  // this component's local state -- load it once we know who's asking.
-  // If the fetch fails (offline, backend down) we keep the built-in fallback
-  // list above rather than showing an empty sidebar.
+  const handleAuthenticated = (user) => {
+    sessionStorage.setItem('nexustrace_session_active', '1');
+    setCurrentUser(user);
+  };
+
+  const handleUserChange = (user) => {
+    if (user) {
+      sessionStorage.setItem('nexustrace_session_active', '1');
+    } else {
+      sessionStorage.removeItem('nexustrace_session_active');
+    }
+    setCurrentUser(user);
+  };
+
+  // Case list from backend
   useEffect(() => {
     if (!currentUser) return;
     fetchCases()
@@ -100,14 +133,15 @@ export default function App() {
 
   // Fetch Suspicious Patterns on case change
   useEffect(() => {
+    if (!currentUser) return;
     fetchSuspiciousPatterns(activeCaseId)
       .then(setPatterns)
       .catch((err) => console.log('[Patterns Notice]', err));
-  }, [activeCaseId]);
+  }, [activeCaseId, currentUser]);
 
   // Fetch graph when active case changes
   const loadGraph = useCallback(async () => {
-    if (!activeCaseId) return;
+    if (!activeCaseId || !currentUser) return;
     setLoading(true);
     setError(null);
     try {
@@ -124,50 +158,32 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [activeCaseId]);
+  }, [activeCaseId, currentUser]);
 
   useEffect(() => {
     loadGraph();
   }, [loadGraph]);
 
-  const handleDrag = (id, x, y) => {
-    setEntities((prev) => prev.map((e) => (e.id === id ? { ...e, x, y } : e)));
-  };
-
-  const handleBatchMove = (positionMap) => {
+  const handleDrag = useCallback((id, x, y) => {
     setEntities((prev) =>
-      prev.map((e) => (positionMap[e.id] ? { ...e, ...positionMap[e.id] } : e))
+      prev.map((e) => (e.id === id ? { ...e, x, y } : e))
     );
-  };
+  }, []);
 
-  const handleAddCase = (newCase) => {
-    setCases((prev) => [...prev, newCase]);
-    setActiveCaseId(newCase.id);
-    createCaseRecord(newCase).catch((err) => console.warn('[Case Registry Notice]', err));
-  };
-
-  const handleFeedbackUpdated = (entityId, verdict) => {
+  const handleBatchMove = useCallback((positionMap) => {
     setEntities((prev) =>
       prev.map((e) => {
-        if (e.id === entityId) {
-          return {
-            ...e,
-            verified_by_officer: verdict === 'CONFIRMED',
-            status: verdict
-          };
-        }
-        return e;
+        const nextPos = positionMap[e.id];
+        return nextPos ? { ...e, x: nextPos.x, y: nextPos.y } : e;
       })
     );
-  };
+  }, []);
 
-  const handleFocusPattern = (pattern) => {
-    setFocusedPattern(pattern);
-    setActiveTab('board');
-    if (pattern.target_entity) {
-      setSelectedEntityId(pattern.target_entity);
-    }
-  };
+  const handleFeedbackUpdated = useCallback((entityId, verdict) => {
+    setEntities((prev) =>
+      prev.map((e) => (e.id === entityId ? { ...e, status: verdict, verified_by_officer: verdict === 'CONFIRMED' } : e))
+    );
+  }, []);
 
   const handleOpenInBoard = (caseId) => {
     setActiveCaseId(caseId);
@@ -178,6 +194,54 @@ export default function App() {
     setSelectedEntityId(entityId);
     setActiveTab('board');
   };
+
+  const handleFocusPattern = (pattern) => {
+    setFocusedPattern(pattern);
+    setActiveTab('board');
+  };
+
+  const handleAddCase = async (newCaseData) => {
+    try {
+      const created = await createCaseRecord(newCaseData);
+      setCases((prev) => [created, ...prev]);
+      setActiveCaseId(created.id);
+      setActiveTab('board');
+    } catch (err) {
+      console.error('Failed to create case:', err);
+      const fallbackCase = {
+        id: `case-${Date.now()}`,
+        caseId: newCaseData.caseId || 'NEW-CASE',
+        title: newCaseData.title || 'Untitled Case',
+        entities: 0,
+        links: 0,
+        tag: 'Active'
+      };
+      setCases((prev) => [fallbackCase, ...prev]);
+      setActiveCaseId(fallbackCase.id);
+      setActiveTab('board');
+    }
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="login-gate" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', fontSize: '14px' }}>
+          &gt; VERIFYING SECURITY CREDENTIALS...
+        </div>
+      </div>
+    );
+  }
+
+  // Compulsory Login Gate
+  if (!currentUser) {
+    return (
+      <LoginGate
+        onAuthenticated={handleAuthenticated}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+      />
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -225,6 +289,7 @@ export default function App() {
               focusedPattern={focusedPattern}
               onClearPatternFocus={() => setFocusedPattern(null)}
               onFeedbackUpdated={handleFeedbackUpdated}
+              onOpenFullProfile={(ent) => setJanamKundliEntity(ent)}
             />
           )}
 
@@ -258,6 +323,7 @@ export default function App() {
               activeCaseId={activeCaseId}
               onSelectCase={setActiveCaseId}
               onOpenEntityInBoard={handleOpenEntityInBoard}
+              onOpenFullProfile={(ent) => setJanamKundliEntity(ent)}
             />
           )}
 
@@ -298,7 +364,16 @@ export default function App() {
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
           currentUser={currentUser}
-          onUserChange={setCurrentUser}
+          onUserChange={handleUserChange}
+        />
+
+        {/* Full Subject Dossier & History (Janam Kundli) Modal */}
+        <EntityJanamKundliModal
+          entity={janamKundliEntity}
+          isOpen={Boolean(janamKundliEntity)}
+          onClose={() => setJanamKundliEntity(null)}
+          allEntities={entities}
+          allThreads={threads}
         />
       </div>
     </ErrorBoundary>

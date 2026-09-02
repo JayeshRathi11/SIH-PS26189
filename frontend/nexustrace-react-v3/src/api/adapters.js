@@ -29,13 +29,6 @@ export function adaptGraphResponse(graphData) {
     return map[type] || 'Entity';
   };
 
-  // Grid layout positioning
-  const cols = Math.ceil(Math.sqrt(nodes.length));
-  const spacingX = 260;
-  const spacingY = 210;
-  const startX = 80;
-  const startY = 80;
-
   // Calculate connection counts
   const connectionCounts = {};
   edges.forEach((edge) => {
@@ -43,14 +36,75 @@ export function adaptGraphResponse(graphData) {
     connectionCounts[edge.target_id] = (connectionCounts[edge.target_id] || 0) + 1;
   });
 
-  const entities = nodes.map((node, index) => {
-    const type = getType(node.type);
-    
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const x = startX + col * spacingX;
-    const y = startY + row * spacingY;
+  // Separate connected vs isolated entities
+  const connectedNodes = [];
+  const unconnectedNodes = [];
 
+  nodes.forEach((node) => {
+    const degree = connectionCounts[node.id] || 0;
+    if (degree > 0) {
+      connectedNodes.push(node);
+    } else {
+      unconnectedNodes.push(node);
+    }
+  });
+
+  // Sort connected nodes so top hubs come first
+  connectedNodes.sort((a, b) => (b.hub_score || 0) - (a.hub_score || 0));
+
+  const positionMap = {};
+  const centerX = 650;
+  const centerY = 450;
+
+  if (connectedNodes.length === 1) {
+    positionMap[connectedNodes[0].id] = { x: centerX, y: centerY };
+  } else if (connectedNodes.length > 1) {
+    // Center the primary hub
+    const primaryHub = connectedNodes[0];
+    positionMap[primaryHub.id] = { x: centerX, y: centerY };
+
+    // Remaining connected nodes
+    const others = connectedNodes.slice(1);
+    const othersCount = others.length;
+    
+    // Distribute in concentric tiers around the hub
+    const tier1 = others.slice(0, 8);
+    const tier2 = others.slice(8);
+
+    const r1 = Math.max(260, tier1.length * 35);
+    tier1.forEach((node, i) => {
+      const angle = (i / tier1.length) * 2 * Math.PI - Math.PI / 2;
+      positionMap[node.id] = {
+        x: Math.round(centerX + r1 * Math.cos(angle)),
+        y: Math.round(centerY + r1 * Math.sin(angle)),
+      };
+    });
+
+    if (tier2.length > 0) {
+      const r2 = r1 + 200;
+      tier2.forEach((node, i) => {
+        const angle = (i / tier2.length) * 2 * Math.PI - Math.PI / 2 + Math.PI / tier2.length;
+        positionMap[node.id] = {
+          x: Math.round(centerX + r2 * Math.cos(angle)),
+          y: Math.round(centerY + r2 * Math.sin(angle)),
+        };
+      });
+    }
+  }
+
+  // Position unconnected nodes neatly in a dedicated side column on the right
+  const sideColumnX = 1350;
+  const sideStartY = 80;
+  unconnectedNodes.forEach((node, i) => {
+    positionMap[node.id] = {
+      x: sideColumnX,
+      y: sideStartY + i * 115,
+    };
+  });
+
+  const entities = nodes.map((node) => {
+    const type = getType(node.type);
+    const pos = positionMap[node.id] || { x: 100, y: 100 };
     const centrality = node.hub_score ?? 0.05;
 
     return {
@@ -63,8 +117,8 @@ export function adaptGraphResponse(graphData) {
       typeLabel: getTypeLabel(type),
       aliases: node.aliases || [],
       domains: node.domains || [],
-      x: x,
-      y: y,
+      x: pos.x,
+      y: pos.y,
       centrality: centrality,
       connections: connectionCounts[node.id] || 0,
       casesInvolved: node.domains ? node.domains.length : 1,
@@ -79,11 +133,6 @@ export function adaptGraphResponse(graphData) {
   });
 
   const threads = edges.map((edge) => {
-    // Frontend thread tuple: [fromId, toId, isStrong, relType, domain, verified, status, confidence]
-    // confidence is the real per-edge value from the backend (see
-    // RelationshipRecord.confidence / explain_path's steps[].confidence) --
-    // Board.jsx uses it to draw thicker lines for better-evidenced links
-    // instead of just the binary isStrong cutoff.
     const confidence = typeof edge.confidence === 'number' ? edge.confidence : 0.9;
     const isStrong = confidence > 0.85;
     return [

@@ -19,6 +19,7 @@ export default function Board({
   focusedPattern,
   onClearPatternFocus,
   onFeedbackUpdated,
+  onOpenFullProfile,
 }) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -286,65 +287,69 @@ export default function Board({
     setPan({ x: Math.round(fitX), y: Math.round(fitY) });
   }, [visibleEntities]);
 
-  // High-Performance Concentric Radial Auto-Layout (Batched in 1 single update, zero lag!)
+  // High-Performance Concentric Radial Auto-Layout: Connected nodes in graph center, unconnected on the side
   const handleAutoLayout = () => {
     if (visibleEntities.length === 0) return;
 
-    // Group entities into 3 hierarchical tiers: Core Hubs, Direct Operatives, Peripheral Assets
-    const coreHubs = [];
-    const operatives = [];
-    const peripherals = [];
+    const connected = [];
+    const unconnected = [];
 
     visibleEntities.forEach((e) => {
-      const centrality = typeof e.centrality === 'number' ? e.centrality : 0;
-      const domainsCount = e.domains?.length || 1;
-      if (centrality >= 0.3 || domainsCount >= 2 || e.type === 'person' && centrality >= 0.2) {
-        coreHubs.push(e);
-      } else if (e.type === 'person' || e.type === 'org') {
-        operatives.push(e);
+      if (e.connections > 0) {
+        connected.push(e);
       } else {
-        peripherals.push(e);
+        unconnected.push(e);
       }
     });
+
+    // Sort connected nodes by centrality/hub score
+    connected.sort((a, b) => (b.centrality || 0) - (a.centrality || 0));
 
     const centerX = 650;
     const centerY = 450;
     const newPositions = {};
 
-    // 1. Core Hubs (Center Ring)
-    const coreCount = Math.max(coreHubs.length, 1);
-    const coreRadius = coreCount === 1 ? 0 : 120;
-    coreHubs.forEach((e, idx) => {
-      const angle = (idx / coreCount) * 2 * Math.PI - Math.PI / 2;
+    if (connected.length === 1) {
+      newPositions[connected[0].id] = { x: centerX, y: centerY };
+    } else if (connected.length > 1) {
+      // Hub node at center
+      newPositions[connected[0].id] = { x: centerX, y: centerY };
+
+      const others = connected.slice(1);
+      const tier1 = others.slice(0, 8);
+      const tier2 = others.slice(8);
+
+      const r1 = Math.max(260, tier1.length * 35);
+      tier1.forEach((e, idx) => {
+        const angle = (idx / tier1.length) * 2 * Math.PI - Math.PI / 2;
+        newPositions[e.id] = {
+          x: Math.round(centerX + r1 * Math.cos(angle)),
+          y: Math.round(centerY + r1 * Math.sin(angle)),
+        };
+      });
+
+      if (tier2.length > 0) {
+        const r2 = r1 + 200;
+        tier2.forEach((e, idx) => {
+          const angle = (idx / tier2.length) * 2 * Math.PI - Math.PI / 2 + Math.PI / tier2.length;
+          newPositions[e.id] = {
+            x: Math.round(centerX + r2 * Math.cos(angle)),
+            y: Math.round(centerY + r2 * Math.sin(angle)),
+          };
+        });
+      }
+    }
+
+    // Unconnected / Isolated nodes positioned on the right side
+    const sideColumnX = 1350;
+    const sideStartY = 80;
+    unconnected.forEach((e, idx) => {
       newPositions[e.id] = {
-        x: Math.round(centerX + (coreCount === 1 ? 0 : coreRadius * Math.cos(angle))),
-        y: Math.round(centerY + (coreCount === 1 ? 0 : coreRadius * Math.sin(angle))),
+        x: sideColumnX,
+        y: sideStartY + idx * 115,
       };
     });
 
-    // 2. Operatives (Middle Ring)
-    const opCount = Math.max(operatives.length, 1);
-    const opRadius = Math.max(260, opCount * 28);
-    operatives.forEach((e, idx) => {
-      const angle = (idx / opCount) * 2 * Math.PI;
-      newPositions[e.id] = {
-        x: Math.round(centerX + opRadius * Math.cos(angle)),
-        y: Math.round(centerY + opRadius * Math.sin(angle)),
-      };
-    });
-
-    // 3. Peripheral Assets (Locations, Phones, Vehicles, Accounts) (Outer Ring)
-    const periphCount = Math.max(peripherals.length, 1);
-    const periphRadius = opRadius + 180;
-    peripherals.forEach((e, idx) => {
-      const angle = (idx / periphCount) * 2 * Math.PI + Math.PI / periphCount;
-      newPositions[e.id] = {
-        x: Math.round(centerX + periphRadius * Math.cos(angle)),
-        y: Math.round(centerY + periphRadius * Math.sin(angle)),
-      };
-    });
-
-    // Batch update all entity positions in ONE single React state update!
     if (onBatchMove) {
       onBatchMove(newPositions);
     } else {
@@ -419,7 +424,8 @@ export default function Board({
             style={{ width: '150px', padding: '4px 8px' }}
           />
 
-          <div style={{ display: 'flex', gap: '4px' }}>
+          {/* Export JSON / GraphML controls (hidden per request) */}
+          <div style={{ display: 'none', gap: '4px' }}>
             <button
               onClick={() => handleExport('json')}
               disabled={isExporting}
@@ -606,6 +612,7 @@ export default function Board({
               isOpen={true}
               activeCaseId={activeCaseId}
               onFeedbackUpdated={onFeedbackUpdated}
+              onOpenFullProfile={onOpenFullProfile}
             />
           </div>
         )}

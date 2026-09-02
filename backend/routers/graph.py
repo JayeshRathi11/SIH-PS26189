@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
-from backend.models.schemas import GraphDataResponse, HubInfluencerResponse
+from backend.models.schemas import GraphDataResponse, HubInfluencerResponse, NetworkBridgeResponse, GraphExportResponse
 from backend.services.graph_service import GraphService
 from backend.routers.auth import get_current_user, User
 
@@ -76,3 +76,26 @@ def explain_shortest_path(
     """
     result = service.explain_path(source_id=source_id, target_id=target_id, max_depth=max_depth)
     return result
+
+@router.get("/bridges", response_model=List[NetworkBridgeResponse])
+def get_network_bridges(
+    domain: Optional[str] = Query(None, description="Filter bridges by domain ID or folder"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Identifies strategic chokepoint bridges (cut-edges) in the criminal syndicate network.
+    Severing these edges fragments communication and transaction flow between branches.
+    """
+    return service.get_network_bridges(domain_filter=domain)
+
+@router.get("/export", response_model=GraphExportResponse)
+def export_graph_data(
+    format: str = Query("json", description="Export format: json or graphml"),
+    domain: Optional[str] = Query(None, description="Optional domain filter"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Exports case graph topology in standard formats (JSON or GraphML) for downstream analysis.
+    """
+    return service.export_graph(domain_filter=domain, format=format)
+

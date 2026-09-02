@@ -249,11 +249,11 @@ class CourtDossierGenerator:
             Table([
                 [
                     Paragraph(f"<b>Compiled By:</b> {officer_name}", self.body_style),
-                    Paragraph("<b>Supervising Officer:</b> _______________________", self.body_style)
+                    Paragraph("<b>Supervising Authority:</b> Addl. Director General (NCRB)", self.body_style)
                 ],
                 [
-                    Paragraph(f"<b>Signature:</b> [Digitally Sealed - NCRB PKI]", self.body_style),
-                    Paragraph("<b>Official Stamp:</b> [SEALED]", self.body_style)
+                    Paragraph("<b>Verification:</b> Digitally Sealed &amp; SHA-256 Hash-Chain Verified (NCRB PKI)", self.body_style),
+                    Paragraph("<b>Official Stamp:</b> [CRYPTOGRAPHICALLY SEALED]", self.body_style)
                 ]
             ], colWidths=[270, 270], style=[
                 ('VALIGN', (0,0), (-1,-1), 'TOP'),

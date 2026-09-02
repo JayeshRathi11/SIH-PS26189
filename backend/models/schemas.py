@@ -68,3 +68,19 @@ class EvaluationScoreResponse(BaseModel):
     relationship_recall: float
     relationship_f1: float
     ground_truth_matched: bool
+
+class NetworkBridgeResponse(BaseModel):
+    source: str
+    source_name: str
+    target: str
+    target_name: str
+    source_type: Optional[str] = "UNKNOWN"
+    target_type: Optional[str] = "UNKNOWN"
+    relationship_type: Optional[str] = "ASSOCIATE_OF"
+    domain: Optional[str] = "general"
+    confidence: Optional[float] = 0.9
+
+class GraphExportResponse(BaseModel):
+    format: str
+    content: str
+

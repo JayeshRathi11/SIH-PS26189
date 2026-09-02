@@ -6,7 +6,8 @@ export default function EntitiesRegistryPage({
   cases,
   activeCaseId,
   onSelectCase,
-  onOpenEntityInBoard
+  onOpenEntityInBoard,
+  onOpenFullProfile
 }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -267,6 +268,14 @@ export default function EntitiesRegistryPage({
 
                       <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            onClick={() => onOpenFullProfile && onOpenFullProfile(entity)}
+                            className="tactical-btn"
+                            style={{ padding: '3px 8px', fontSize: '10.5px', background: 'var(--tag-amber)', color: '#FFF', borderColor: 'var(--tag-amber)' }}
+                            title="View Complete History & Dossier (Janam Kundli)"
+                          >
+                            📜 Profile
+                          </button>
                           <button
                             onClick={() => onOpenEntityInBoard(entity.id)}
                             className="tactical-btn"

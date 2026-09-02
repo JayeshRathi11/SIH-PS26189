@@ -19,10 +19,17 @@ def load_parsed_docs() -> List[dict]:
     return docs
 
 @router.get("", response_model=List[DocumentResponse])
-def list_documents(domain: Optional[str] = Query(None), current_user: User = Depends(get_current_user)):
+def list_documents(
+    domain: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    current_user: User = Depends(get_current_user)
+):
     docs = load_parsed_docs()
     if domain:
         docs = [d for d in docs if domain in d.get("domain", "")]
+    
+    paginated_docs = docs[skip:skip + limit]
     return [
         DocumentResponse(
             doc_id=d["doc_id"],
@@ -31,7 +38,7 @@ def list_documents(domain: Optional[str] = Query(None), current_user: User = Dep
             text=d.get("text", ""),
             source_file=d.get("source_file", "")
         )
-        for d in docs
+        for d in paginated_docs
     ]
 
 @router.get("/{doc_id}", response_model=DocumentResponse)

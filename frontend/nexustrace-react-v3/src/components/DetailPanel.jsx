@@ -6,7 +6,6 @@ function formatTimestamp(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
   return d.toLocaleString(undefined, {
-    weekday: 'short',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -15,12 +14,12 @@ function formatTimestamp(iso) {
   });
 }
 
-export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUpdated }) {
+export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUpdated, onOpenFullProfile }) {
   const [selectedDocId, setSelectedDocId] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState(null);
-  const [showDocuments, setShowDocuments] = useState(false); // Collapsible Documents Toggle
+  const [showDocuments, setShowDocuments] = useState(false);
 
   // Feedback State
   const [fbVerdict, setFbVerdict] = useState(null);
@@ -102,47 +101,99 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
   if (!entity) {
     return (
       <div className="detail-inner">
-        <div className="eyebrow">Subject Dossier</div>
-        <h3>No Entity Selected</h3>
-        <div className="role">Click any pin node on the corkboard to inspect its intelligence profile, evidentiary chain, and legal documents.</div>
+        <div style={{ fontSize: '13px', color: 'var(--ink-muted)', textAlign: 'center', padding: '24px 10px' }}>
+          Select any node on the board to view intelligence details.
+        </div>
       </div>
     );
   }
 
   const dossierUrl = getDossierDownloadUrl(entity.id);
+  const centralityVal = typeof entity.centrality === 'number' ? entity.centrality.toFixed(4) : entity.centrality;
+
+  // Filter distinct aliases that are not identical to the canonical name
+  const filteredAliases = (entity.aliases || []).filter(
+    (al) => al.toLowerCase() !== (entity.name || '').toLowerCase()
+  );
 
   return (
-    <div className="detail-inner">
-      {/* Eyebrow & Status Badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="eyebrow">Subject Dossier</div>
-        {fbVerdict === 'CONFIRMED' && (
-          <span className="conf-stamp" style={{ fontSize: '8px' }}>
-            ✓ VERIFIED BY OFFICER
+    <div className="detail-inner" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Identity Card Header */}
+      <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+          <div>
+            <h3 style={{ fontSize: '17px', margin: 0, fontFamily: 'Space Grotesk, sans-serif', color: 'var(--ink)', fontWeight: 700 }}>
+              {entity.name}
+            </h3>
+            <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '2px' }}>
+              {entity.fullRole || entity.role || entity.typeLabel}
+            </div>
+          </div>
+          <span style={{
+            fontSize: '9.5px',
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontWeight: 700,
+            padding: '2px 7px',
+            borderRadius: '3px',
+            background: 'var(--tag-amber-bg)',
+            border: '1px solid var(--tag-amber)',
+            color: 'var(--tag-amber)',
+            whiteSpace: 'nowrap'
+          }}>
+            {(entity.type || 'PERSON').toUpperCase()}
           </span>
-        )}
-        {fbVerdict === 'REJECTED' && (
-          <span className="conf-stamp" style={{ fontSize: '8px', color: 'var(--stamp-red)', borderColor: 'var(--stamp-red)', background: 'var(--stamp-red-bg)' }}>
-            ✗ REJECTED
-          </span>
+        </div>
+
+        {/* Distinct Aliases */}
+        {filteredAliases.length > 0 && (
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '10px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600 }}>
+              ALIASES:
+            </span>
+            {filteredAliases.map((al, idx) => (
+              <span key={idx} style={{ background: 'var(--paper)', border: '1px solid var(--border)', color: 'var(--ink)', padding: '1px 6px', borderRadius: '3px', fontSize: '10px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600 }}>
+                "{al}"
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Identity Header */}
-      <div>
-        <h3 style={{ fontSize: '16px', margin: '2px 0 2px' }}>{entity.name}</h3>
-        <div className="role">{entity.fullRole || entity.role}</div>
-      </div>
+      {/* Primary Action: View Full Profile */}
+      <button
+        onClick={() => onOpenFullProfile && onOpenFullProfile(entity)}
+        className="tactical-btn"
+        style={{
+          width: '100%',
+          justifyContent: 'center',
+          background: 'var(--stamp-red)',
+          color: '#FFF',
+          border: 'none',
+          padding: '9px 12px',
+          borderRadius: '5px',
+          fontWeight: 700,
+          fontSize: '12px',
+          fontFamily: 'IBM Plex Mono, monospace',
+          cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(185, 28, 28, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}
+      >
+        <span>View Full Profile</span>
+        <span>➔</span>
+      </button>
 
-      {/* Quick Tactical Action Buttons */}
-      <div style={{ display: 'flex', gap: '6px' }}>
+      {/* Secondary Actions: Court PDF & Explain Link */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <a
           href={dossierUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="tactical-btn export"
-          style={{ flex: 1, justifyContent: 'center', fontSize: '10.5px', padding: '5px 8px' }}
-          title="Download Formal Court Evidentiary Dossier (PDF)"
+          style={{ justifyContent: 'center', fontSize: '11px', padding: '6px 8px', borderRadius: '4px' }}
+          title="Download Section 65B Certified Court Brief (PDF)"
         >
           📄 Court Brief (PDF)
         </a>
@@ -150,72 +201,147 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
           onClick={handleExplainToHub}
           disabled={xaiLoading}
           className="tactical-btn"
-          style={{ flex: 1, justifyContent: 'center', fontSize: '10.5px', padding: '5px 8px' }}
-          title="Explain Evidentiary Link Chain to Master Syndicate Hub"
+          style={{ justifyContent: 'center', fontSize: '11px', padding: '6px 8px', borderRadius: '4px' }}
+          title="Trace link chain to master kingpin"
         >
-          {xaiLoading ? 'Tracing...' : '🧠 Explain Link'}
+          {xaiLoading ? 'Tracing...' : '🧠 AI Link Path'}
         </button>
       </div>
 
       {/* Explainability (XAI) Output Card */}
       {xaiResult && (
-        <div style={{ background: 'var(--paper)', border: '1px solid var(--border-strong)', borderLeft: '4px solid var(--tag-amber)', borderRadius: '2px', padding: '10px', fontSize: '11.5px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>
-            <span>🧠 AI Reasoning Chain</span>
-            <span className="mono" style={{ fontSize: '9.5px', color: 'var(--tag-amber)' }}>
+        <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', borderLeft: '4px solid var(--stamp-green)', borderRadius: '4px', padding: '10px 12px', fontSize: '11.5px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontWeight: 700 }}>
+            <span style={{ color: 'var(--stamp-green)', fontFamily: 'Space Grotesk, sans-serif' }}>🧠 Link Path Result</span>
+            <span className="mono" style={{ fontSize: '9px', color: 'var(--ink-muted)' }}>
               ({xaiResult.shortest_distance_hops} Hops)
             </span>
           </div>
-          <p style={{ margin: '0 0 6px', color: 'var(--ink)', lineHeight: '1.4', fontSize: '11px' }}>
+          <p style={{ margin: '0 0 6px', color: 'var(--ink)', lineHeight: '1.4', fontSize: '11.5px' }}>
             {xaiResult.summary_conclusion}
           </p>
           {xaiResult.paths && xaiResult.paths.length > 0 && (
-            <div style={{ background: 'var(--panel)', border: '1px dashed var(--border)', padding: '5px 7px', borderRadius: '2px', fontFamily: 'IBM Plex Mono, monospace', fontSize: '9.5px', color: 'var(--ink-soft)' }}>
-              <b>Chain:</b> {xaiResult.paths[0].nodes.join(' ➔ ')}
+            <div style={{ background: 'var(--paper)', border: '1px dashed var(--border)', padding: '4px 8px', borderRadius: '3px', fontFamily: 'IBM Plex Mono, monospace', fontSize: '10px', color: 'var(--ink-soft)' }}>
+              {xaiResult.paths[0].nodes.join(' ➔ ')}
             </div>
           )}
         </div>
       )}
       {xaiError && (
-        <div style={{ fontSize: '10.5px', color: 'var(--stamp-red)', padding: '5px 8px', border: '1px solid var(--stamp-red)', borderRadius: '2px', background: 'var(--stamp-red-bg)' }}>
+        <div style={{ fontSize: '11px', color: 'var(--stamp-red)', padding: '6px 10px', border: '1px solid var(--stamp-red)', borderRadius: '4px', background: 'var(--stamp-red-bg)' }}>
           {xaiError}
         </div>
       )}
 
-      {/* Human-in-the-Loop Officer Verification */}
-      <div className="officer-verify-box">
-        <div className="officer-verify-title">
-          👮 Officer Corroboration
+      {/* 2x2 Intelligence Metrics Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', padding: '8px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '9px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase', fontWeight: 700 }}>
+            Centrality Index
+          </div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--tag-amber)', fontFamily: 'Space Grotesk, sans-serif', marginTop: '2px' }}>
+            {centralityVal}
+          </div>
         </div>
-        <div className="officer-btn-group">
+
+        <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', padding: '8px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '9px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase', fontWeight: 700 }}>
+            Direct Links
+          </div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--stamp-red)', fontFamily: 'Space Grotesk, sans-serif', marginTop: '2px' }}>
+            {entity.connections || 0}
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', padding: '8px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '9px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase', fontWeight: 700 }}>
+            Cluster
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--stamp-blue)', fontFamily: 'Space Grotesk, sans-serif', marginTop: '2px' }}>
+            #{entity.communityCluster || 0}
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', padding: '8px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '9px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase', fontWeight: 700 }}>
+            Crime Domains
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--stamp-green)', fontFamily: 'Space Grotesk, sans-serif', marginTop: '2px' }}>
+            {entity.casesInvolved || (entity.domains ? entity.domains.length : 1)}
+          </div>
+        </div>
+      </div>
+
+      {/* Human-in-the-Loop Officer Corroboration */}
+      <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>👮 Officer Verification</span>
+          {fbVerdict === 'CONFIRMED' && (
+            <span style={{ color: 'var(--stamp-green)', fontWeight: 700 }}>✓ CONFIRMED</span>
+          )}
+          {fbVerdict === 'REJECTED' && (
+            <span style={{ color: 'var(--stamp-red)', fontWeight: 700 }}>✗ REJECTED</span>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
           <button
             onClick={() => handleFeedback('CONFIRMED')}
             disabled={fbLoading}
-            className={`officer-btn confirm ${fbVerdict === 'CONFIRMED' ? 'active' : ''}`}
+            style={{
+              padding: '6px 4px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              border: fbVerdict === 'CONFIRMED' ? '1px solid var(--stamp-green)' : '1px solid var(--border)',
+              background: fbVerdict === 'CONFIRMED' ? 'var(--stamp-green-bg)' : 'var(--paper)',
+              color: fbVerdict === 'CONFIRMED' ? 'var(--stamp-green)' : 'var(--ink)'
+            }}
           >
             ✓ Confirm
           </button>
           <button
             onClick={() => handleFeedback('REJECTED')}
             disabled={fbLoading}
-            className={`officer-btn reject ${fbVerdict === 'REJECTED' ? 'active' : ''}`}
+            style={{
+              padding: '6px 4px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              border: fbVerdict === 'REJECTED' ? '1px solid var(--stamp-red)' : '1px solid var(--border)',
+              background: fbVerdict === 'REJECTED' ? 'var(--stamp-red-bg)' : 'var(--paper)',
+              color: fbVerdict === 'REJECTED' ? 'var(--stamp-red)' : 'var(--ink)'
+            }}
           >
             ✗ Reject
           </button>
           <button
             onClick={() => handleFeedback('UNCERTAIN')}
             disabled={fbLoading}
-            className={`officer-btn flag ${fbVerdict === 'UNCERTAIN' ? 'active' : ''}`}
+            style={{
+              padding: '6px 4px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              border: fbVerdict === 'UNCERTAIN' ? '1px solid var(--tag-amber)' : '1px solid var(--border)',
+              background: fbVerdict === 'UNCERTAIN' ? 'var(--tag-amber-bg)' : 'var(--paper)',
+              color: fbVerdict === 'UNCERTAIN' ? 'var(--tag-amber)' : 'var(--ink)'
+            }}
           >
             ? Flag
           </button>
         </div>
+
         <input
           type="text"
           placeholder="Corroboration notes (optional)..."
           value={fbNotes}
           onChange={(e) => setFbNotes(e.target.value)}
           className="officer-input"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '6px 8px', fontSize: '11px', borderRadius: '4px' }}
         />
         {fbSuccessMsg && (
           <div style={{ color: 'var(--stamp-green)', fontSize: '9.5px', marginTop: '4px', fontFamily: 'IBM Plex Mono, monospace' }}>
@@ -224,67 +350,22 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
         )}
       </div>
 
-      {/* Intelligence Metric Rows */}
-      <div>
-        <div className="stat-row">
-          <span className="k">POLE Node Type</span>
-          <span className="v">{entity.typeLabel || entity.type}</span>
+      {/* Reason Flagged Intelligence Excerpt */}
+      <div style={{ background: 'var(--panel-elevated)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--tag-amber)', fontFamily: 'IBM Plex Mono, monospace', marginBottom: '4px' }}>
+          Intelligence Summary:
         </div>
-        <div className="stat-row">
-          <span className="k">Direct Connections</span>
-          <span className="v">{entity.connections}</span>
-        </div>
-        <div className="stat-row">
-          <span className="k">Centrality Index</span>
-          <span className="v">
-            {typeof entity.centrality === 'number' ? entity.centrality.toFixed(4) : entity.centrality}
-          </span>
-        </div>
-        <div className="stat-row">
-          <span className="k">Crime Domains</span>
-          <span className="v">{entity.casesInvolved}</span>
-        </div>
-
-        {entity.aliases && entity.aliases.length > 0 && (
-          <div style={{ marginTop: '8px' }}>
-            <span style={{ fontSize: '10.5px', color: 'var(--ink-soft)', display: 'block', marginBottom: '3px' }}>
-              Aliases:
-            </span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-              {entity.aliases.slice(0, 6).map((al, idx) => (
-                <span key={idx} style={{ background: 'var(--paper)', border: '1px solid var(--border)', color: 'var(--ink)', padding: '1px 5px', borderRadius: '2px', fontSize: '9px', fontFamily: 'IBM Plex Mono, monospace' }}>
-                  "{al}"
-                </span>
-              ))}
-              {entity.aliases.length > 6 && (
-                <span style={{ fontSize: '9px', color: 'var(--ink-muted)', alignSelf: 'center' }}>
-                  +{entity.aliases.length - 6} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {entity.timestamp && (
-          <div className="stat-row" style={{ marginTop: '6px' }}>
-            <span className="k">Recorded Timestamp</span>
-            <span className="v">{formatTimestamp(entity.timestamp)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Evidence Dossier Card with Tape Strips */}
-      <div className="evidence">
-        <h4>Why Flagged</h4>
-        <p>{entity.evidenceText}</p>
-        <div className="src">
-          <span>Source: {entity.source || 'Intercept Ingestion'}</span>
-          <span className="conf-stamp">DIGITALLY HASHED</span>
+        <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.5', color: 'var(--ink)' }}>
+          {entity.evidenceText || `Subject identified in Case Network.`}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border)', fontSize: '10px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
+          <span>MHA / NCRB Ingestion</span>
+          <span style={{ color: 'var(--stamp-green)', fontWeight: 600 }}>DIGITALLY SEALED</span>
         </div>
       </div>
 
-      {/* Optional Collapsible Primary Documents Dropdown */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: '3px', background: 'var(--paper)', overflow: 'hidden' }}>
+      {/* Collapsible Primary Documents Dropdown */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--paper)', overflow: 'hidden' }}>
         <button
           type="button"
           onClick={() => setShowDocuments(!showDocuments)}
@@ -298,19 +379,19 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
             alignItems: 'center',
             cursor: 'pointer',
             fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '10.5px',
+            fontSize: '11px',
             fontWeight: 600,
             color: 'var(--ink)'
           }}
         >
-          <span>📄 Primary Evidence Documents ({documents.length})</span>
-          <span>{showDocuments ? '▲ Hide' : '▼ Show'}</span>
+          <span>📄 Attached Evidence Files ({documents.length})</span>
+          <span>{showDocuments ? '▲' : '▼'}</span>
         </button>
 
         {showDocuments && (
           <div style={{ padding: '10px' }}>
-            {docLoading && <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Loading documents...</div>}
-            {docError && <div style={{ fontSize: '10.5px', color: 'var(--stamp-red)' }}>Error loading documents.</div>}
+            {docLoading && <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Loading documents...</div>}
+            {docError && <div style={{ fontSize: '11px', color: 'var(--stamp-red)' }}>Error loading documents.</div>}
             {!docLoading && !docError && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {documents.length === 0 && <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontStyle: 'italic' }}>No primary documents attached.</div>}
@@ -319,7 +400,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
                     key={idx}
                     className={`doc-item ${selectedDocId === idx ? 'selected' : ''}`}
                     onClick={() => setSelectedDocId(selectedDocId === idx ? null : idx)}
-                    style={{ padding: '6px 8px', fontSize: '10.5px' }}
+                    style={{ padding: '6px 8px', fontSize: '11px', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontWeight: 600, color: 'var(--ink)' }}>
@@ -332,7 +413,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
                       )}
                     </div>
                     {selectedDocId === idx && (
-                      <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: 'var(--paper)', padding: '6px', borderRadius: '2px', border: '1px dashed var(--border)' }}>
+                      <div style={{ marginTop: '6px', fontSize: '10.5px', color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', lineHeight: '1.4', background: 'var(--paper)', padding: '6px', borderRadius: '3px', border: '1px dashed var(--border)' }}>
                         {doc.text}
                       </div>
                     )}
@@ -342,12 +423,6 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
             )}
           </div>
         )}
-      </div>
-
-      {/* Footer */}
-      <div className="detail-footer">
-        <span>DIGITAL CUSTODY: ACTIVE</span>
-        <span>NCRB-MHA v2.0</span>
       </div>
     </div>
   );

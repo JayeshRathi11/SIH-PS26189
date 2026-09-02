@@ -1,9 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { explainPath } from '../api/client';
 
-// A link counts as "strong" when the backend's own confidence score for that
-// relationship clears this bar. The backend already computes real per-edge
-// confidence in explain_path() — this just decides how to draw it.
 const STRONG_THRESHOLD = 0.75;
 
 function strengthOf(step) {
@@ -19,92 +16,156 @@ function prettyRelationship(relType) {
     .join(' ');
 }
 
-export default function XaiConsolePage({ entities }) {
-  const [sourceName, setSourceName] = useState(entities.length > 1 ? entities[1]?.name || 'Rina Das' : 'Rina Das');
+export default function XaiConsolePage({ entities = [] }) {
+  const [sourceName, setSourceName] = useState('Iliyas Khan');
   const [targetName, setTargetName] = useState('Iqbal Ansari');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
+  // Verified working cross-domain sample pairs from the intelligence graph
+  const sampleSubjects = [
+    { source: 'Iliyas Khan', target: 'Iqbal Ansari', desc: 'Narcotics operative to Syndicate Kingpin (2 hops via Devendra)' },
+    { source: 'Rohit Chaurasia', target: 'Iqbal Ansari', desc: 'Cyber fraud operative to Kingpin (via IA Digital Ventures)' },
+    { source: 'Manoj Tiwari', target: 'Iqbal Ansari', desc: 'Human trafficking desk to Kingpin (via Sunrise Placement)' },
+    { source: 'Anil Kamble', target: 'Harjeet Singh', desc: 'Vehicle theft operative to Arms smuggler (via shared vehicle asset)' },
+    { source: 'Devendra Solanki', target: 'Rohit Chaurasia', desc: 'Cross-domain linkage: Narcotics to Cyber Fraud' }
+  ];
+
   const handleTracePath = async (e) => {
     e?.preventDefault();
-    if (!sourceName || !targetName) return;
+    if (!sourceName.trim() || !targetName.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await explainPath(sourceName, targetName, 6);
+      const data = await explainPath(sourceName.trim(), targetName.trim(), 6);
       setResult(data);
     } catch (err) {
-      setError(err.message || 'Could not find a connection between these two people.');
+      setError(err.message || 'Could not find a connection between these two subjects.');
     } finally {
       setLoading(false);
     }
   };
-
-  const sampleSubjects = [
-    { source: 'Rina Das', target: 'Iqbal Ansari', desc: 'Courier to suspected ring leader' },
-    { source: 'Rohit Chaurasia', target: 'Iqbal Ansari', desc: 'Cyber fraud mule to ring leader' },
-    { source: 'Farhan Qureshi', target: 'Iqbal Ansari', desc: 'Narcotics distributor to central hub' },
-    { source: 'Ajay Bhonsle', target: 'Iqbal Ansari', desc: 'Hawala agent to syndicate financier' }
-  ];
 
   const handleSetSample = (s, t) => {
     setSourceName(s);
     setTargetName(t);
   };
 
-  // Chain strength = weakest link: one weak connection is enough to make the
-  // whole chain weak, which is the useful reading for an investigator.
+  // Run initial trace on mount if default values exist
+  useEffect(() => {
+    handleTracePath();
+  }, []);
+
   const overallStrength = (pathObj) =>
     pathObj.steps && pathObj.steps.length > 0 && pathObj.steps.every((s) => strengthOf(s) === 'strong')
       ? 'strong'
       : 'weak';
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ padding: '24px', overflowY: 'auto', height: '100vh', boxSizing: 'border-box' }}>
       {/* Header */}
-      <div className="page-header-row">
+      <div className="page-header-row" style={{ marginBottom: '20px' }}>
         <div>
-          <div className="page-eyebrow">⟟ PATHFINDER</div>
-          <h2 className="page-title">How Are Two People Connected?</h2>
-          <p className="page-subtitle">
-            Pick two people and see the chain of connections between them, with each link marked as
-            strong or weak based on the evidence behind it.
+          <div className="page-eyebrow" style={{ color: 'var(--tag-rose)', fontSize: '11px', fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>
+            🧭 XAI EVIDENTIARY PATHFINDER
+          </div>
+          <h2 className="page-title" style={{ margin: '4px 0', fontSize: '22px', fontFamily: 'Space Grotesk, sans-serif' }}>
+            Syndicate Chain of Connection & Explanations
+          </h2>
+          <p className="page-subtitle" style={{ margin: 0, color: 'var(--ink-muted)', fontSize: '12px' }}>
+            Trace direct and multi-hop operational linkages between subjects across 10 crime verticals with verbatim evidence citations.
           </p>
         </div>
       </div>
 
-      {/* Query Row */}
-      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '3px', padding: '18px', marginBottom: '20px' }}>
+      {/* Query Control Card */}
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '6px', padding: '18px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
         <form onSubmit={handleTracePath} style={{ display: 'flex', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 220px', minWidth: '200px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', color: 'var(--ink-soft)', marginBottom: '4px' }}>
-              Person A:
+          {/* Source Subject Input & Select */}
+          <div style={{ flex: '1 1 240px', minWidth: '220px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace', color: 'var(--ink-soft)', marginBottom: '5px' }}>
+              Subject A (Source):
             </label>
-            <input
-              type="text"
-              value={sourceName}
-              onChange={(e) => setSourceName(e.target.value)}
-              className="search-box"
-              placeholder="e.g. Rina Das"
-              required
-            />
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={sourceName}
+                onChange={(e) => setSourceName(e.target.value)}
+                className="search-box"
+                placeholder="e.g. Iliyas Khan"
+                style={{ flex: 1, padding: '8px 10px', fontSize: '12px' }}
+                required
+              />
+              {entities.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => e.target.value && setSourceName(e.target.value)}
+                  style={{
+                    background: 'var(--panel-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    color: 'var(--ink)',
+                    fontSize: '11px',
+                    padding: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Pick from known entities"
+                >
+                  <option value="">▼ Pick</option>
+                  {entities.map((ent) => (
+                    <option key={ent.id} value={ent.name}>
+                      {ent.name} ({ent.typeLabel || ent.type})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
-          <div style={{ fontSize: '18px', color: 'var(--ink-muted)', paddingBottom: '9px' }}>→</div>
+          <div style={{ fontSize: '20px', color: 'var(--tag-rose)', paddingBottom: '8px', fontWeight: 700 }}>
+            ➔
+          </div>
 
-          <div style={{ flex: '1 1 220px', minWidth: '200px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', color: 'var(--ink-soft)', marginBottom: '4px' }}>
-              Person B:
+          {/* Target Subject Input & Select */}
+          <div style={{ flex: '1 1 240px', minWidth: '220px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace', color: 'var(--ink-soft)', marginBottom: '5px' }}>
+              Subject B (Target):
             </label>
-            <input
-              type="text"
-              value={targetName}
-              onChange={(e) => setTargetName(e.target.value)}
-              className="search-box"
-              placeholder="e.g. Iqbal Ansari"
-              required
-            />
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={targetName}
+                onChange={(e) => setTargetName(e.target.value)}
+                className="search-box"
+                placeholder="e.g. Iqbal Ansari"
+                style={{ flex: 1, padding: '8px 10px', fontSize: '12px' }}
+                required
+              />
+              {entities.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => e.target.value && setTargetName(e.target.value)}
+                  style={{
+                    background: 'var(--panel-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    color: 'var(--ink)',
+                    fontSize: '11px',
+                    padding: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Pick from known entities"
+                >
+                  <option value="">▼ Pick</option>
+                  {entities.map((ent) => (
+                    <option key={ent.id} value={ent.name}>
+                      {ent.name} ({ent.typeLabel || ent.type})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           <button
@@ -115,156 +176,168 @@ export default function XaiConsolePage({ entities }) {
               background: 'var(--stamp-red)',
               color: '#FFF',
               borderColor: 'var(--stamp-red)',
-              padding: '10px 16px',
-              fontSize: '12px'
+              padding: '9px 18px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer'
             }}
           >
-            {loading ? 'Searching…' : 'Find the Connection'}
+            {loading ? 'Analyzing Graph…' : '🧭 Find Connection'}
           </button>
         </form>
 
-        {/* Quick Picks */}
+        {/* Quick Examples */}
         <div style={{ borderTop: '1px solid var(--border)', marginTop: '16px', paddingTop: '12px' }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '10px', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: '8px' }}>
-            Quick examples:
+          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: '8px', fontWeight: 600 }}>
+            Verified Intelligence Chains:
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {sampleSubjects.map((s, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => handleSetSample(s.source, s.target)}
+                onClick={() => {
+                  handleSetSample(s.source, s.target);
+                  explainPath(s.source, s.target, 6).then(setResult).catch((err) => setError(err.message));
+                }}
                 className="filter-chip"
-                style={{ textAlign: 'left' }}
+                style={{
+                  textAlign: 'left',
+                  background: 'var(--panel-elevated)',
+                  border: '1px solid var(--border)',
+                  padding: '5px 10px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
                 title={s.desc}
               >
-                {s.source} → {s.target}
+                <span style={{ color: 'var(--tag-amber)', fontWeight: 600 }}>{s.source}</span>
+                <span style={{ color: 'var(--ink-muted)', margin: '0 4px' }}>➔</span>
+                <span style={{ color: 'var(--stamp-red)', fontWeight: 600 }}>{s.target}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Output */}
-      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '3px', padding: '20px', minHeight: '280px' }}>
+      {/* Output / Results Card */}
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '6px', padding: '20px', minHeight: '300px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
         {error && (
-          <div style={{ padding: '12px', background: 'var(--stamp-red-bg)', border: '1px solid var(--stamp-red)', color: 'var(--stamp-red)', borderRadius: '3px', fontSize: '12px' }}>
+          <div style={{ padding: '12px 14px', background: 'var(--stamp-red-bg)', border: '1px solid var(--stamp-red)', color: 'var(--stamp-red)', borderRadius: '4px', fontSize: '12px', marginBottom: '14px' }}>
             ⚠️ {error}
-          </div>
-        )}
-
-        {!result && !error && !loading && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-muted)' }}>
-            Enter two people above to see how — or whether — they're connected.
           </div>
         )}
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--tag-amber)', fontFamily: 'IBM Plex Mono, monospace', fontSize: '13px' }}>
-            ⟳ Searching the case graph for a connection…
+            ⟳ Synthesizing multi-hop graph path and generating evidentiary chain...
+          </div>
+        )}
+
+        {!result && !error && !loading && (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-muted)' }}>
+            Select two subjects above to discover how they are linked across crime verticals.
           </div>
         )}
 
         {result && !loading && result.path_found === false && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-muted)' }}>
-            {result.message || 'No connection found between these two people in the current case data.'}
+          <div style={{ textAlign: 'center', padding: '50px 20px', background: 'var(--panel-elevated)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔍</div>
+            <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: '14px', marginBottom: '4px' }}>
+              No Connection Path Found
+            </div>
+            <div style={{ color: 'var(--ink-muted)', fontSize: '12px', maxWidth: '480px', margin: '0 auto' }}>
+              {result.message || `No direct or indirect chain connects '${result.source}' and '${result.target}' within current intelligence documents.`}
+            </div>
           </div>
         )}
 
         {result && !loading && result.path_found !== false && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Verdict Banner */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: 'var(--paper)', border: '1px solid var(--border)', padding: '12px 14px', borderRadius: '3px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: 'var(--panel-elevated)', border: '1px solid var(--border)', padding: '12px 16px', borderRadius: '6px' }}>
               <div>
-                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--ink-soft)' }}>
-                  Connection between {result.source} and {result.target}:
+                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '12px', color: 'var(--ink-soft)' }}>
+                  Connection Path: <strong style={{ color: 'var(--tag-amber)' }}>{result.source}</strong> ➔ <strong style={{ color: 'var(--stamp-red)' }}>{result.target}</strong>
                 </span>
+                <div style={{ fontSize: '11px', color: 'var(--ink-muted)', marginTop: '2px' }}>
+                  Distance: {result.shortest_distance_hops} Hop(s) · {result.total_shortest_paths} Optimal Chain(s)
+                </div>
               </div>
               {result.paths && result.paths.length > 0 && (
                 <span
-                  className="conf-stamp"
                   style={{
                     color: overallStrength(result.paths[0]) === 'strong' ? 'var(--stamp-green)' : 'var(--stamp-red)',
-                    borderColor: overallStrength(result.paths[0]) === 'strong' ? 'var(--stamp-green)' : 'var(--stamp-red)'
+                    background: overallStrength(result.paths[0]) === 'strong' ? 'var(--stamp-green-bg)' : 'var(--stamp-red-bg)',
+                    border: `1px solid ${overallStrength(result.paths[0]) === 'strong' ? 'var(--stamp-green)' : 'var(--stamp-red)'}`,
+                    borderRadius: '4px',
+                    padding: '4px 10px',
+                    fontWeight: 700,
+                    fontSize: '11px',
+                    fontFamily: 'IBM Plex Mono, monospace'
                   }}
                 >
-                  {overallStrength(result.paths[0]) === 'strong' ? 'Strongly Connected' : 'Weakly Connected'}
+                  {overallStrength(result.paths[0]) === 'strong' ? '✓ STRONG EVIDENTIARY LINK' : '⚠ WEAK / CORROBORATION NEEDED'}
                 </span>
               )}
             </div>
 
             {/* Plain-language explanation */}
-            <div className="evidence">
-              <h4>In Plain Words</h4>
-              <p style={{ fontSize: '13px', lineHeight: '1.6' }}>
+            <div style={{ background: 'var(--paper)', border: '1px solid var(--border)', borderRadius: '6px', padding: '16px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--tag-amber)', marginBottom: '6px', fontFamily: 'IBM Plex Mono, monospace' }}>
+                Evidentiary Synthesis
+              </div>
+              <p style={{ margin: 0, fontSize: '13.5px', lineHeight: '1.6', color: 'var(--ink)' }}>
                 {result.summary_conclusion}
               </p>
-              <div className="src">
-                <span>Source: Graph analytics engine</span>
-                <span className="conf-stamp">Backed by recorded evidence</span>
-              </div>
             </div>
 
-            {/* Legend */}
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <svg width="28" height="10" viewBox="0 0 28 10"><line x1="0" y1="5" x2="28" y2="5" stroke="var(--stamp-green)" strokeWidth="3" /></svg>
-                Strong connection
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <svg width="28" height="10" viewBox="0 0 28 10"><line x1="0" y1="5" x2="28" y2="5" stroke="var(--ink-muted)" strokeWidth="2" strokeDasharray="4 3" /></svg>
-                Weak connection
-              </div>
-            </div>
-
-            {/* Visual chains — one per alternative path found */}
+            {/* Visual chains */}
             {result.paths && result.paths.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--ink-soft)', textTransform: 'uppercase' }}>
-                  {result.paths.length > 1 ? `${result.paths.length} possible chains found:` : 'Connection chain:'}
+                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', color: 'var(--ink-soft)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Step-by-Step Path Links ({result.paths.length} Chain{result.paths.length > 1 ? 's' : ''}):
                 </div>
 
                 {result.paths.map((pathObj, pIdx) => (
                   <div
                     key={pIdx}
                     style={{
-                      background: 'var(--paper)',
+                      background: 'var(--panel-elevated)',
                       border: '1px solid var(--border)',
                       borderLeft: `4px solid ${overallStrength(pathObj) === 'strong' ? 'var(--stamp-green)' : 'var(--stamp-red)'}`,
-                      borderRadius: '3px',
+                      borderRadius: '6px',
                       padding: '16px'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0' }}>
+                    {/* Visual Node-Edge Flow */}
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
                       {pathObj.nodes.map((nodeName, nIdx) => {
                         const step = pathObj.steps && pathObj.steps[nIdx];
+                        const isFirst = nIdx === 0;
                         const isLast = nIdx === pathObj.nodes.length - 1;
                         return (
                           <React.Fragment key={nIdx}>
                             <span style={{
-                              background: nIdx === 0 ? 'var(--tag-amber)' : (isLast ? 'var(--stamp-red)' : 'var(--panel)'),
-                              color: nIdx === 0 ? 'var(--on-amber)' : (isLast ? '#FFF' : 'var(--ink)'),
+                              background: isFirst ? 'var(--tag-amber)' : (isLast ? 'var(--stamp-red)' : 'var(--panel)'),
+                              color: isFirst ? 'var(--on-amber)' : (isLast ? '#FFF' : 'var(--ink)'),
                               border: '1px solid var(--border)',
-                              padding: '4px 10px',
-                              borderRadius: '3px',
+                              padding: '5px 12px',
+                              borderRadius: '4px',
                               fontWeight: 700,
-                              fontSize: '11.5px',
+                              fontSize: '12px',
                               fontFamily: 'Space Grotesk, sans-serif'
                             }}>
                               {nodeName}
                             </span>
                             {!isLast && step && (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 8px', minWidth: '80px' }}>
-                                <svg width="80" height="12" viewBox="0 0 80 12">
-                                  <line
-                                    x1="0" y1="6" x2="80" y2="6"
-                                    stroke={strengthOf(step) === 'strong' ? 'var(--stamp-green)' : 'var(--ink-muted)'}
-                                    strokeWidth={strengthOf(step) === 'strong' ? 3 : 2}
-                                    strokeDasharray={strengthOf(step) === 'strong' ? undefined : '4 3'}
-                                  />
-                                </svg>
-                                <span style={{ fontSize: '9.5px', color: 'var(--ink-muted)', textAlign: 'center', marginTop: '2px' }}>
-                                  {prettyRelationship(step.relationship_type)}
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 4px' }}>
+                                <span style={{ fontSize: '13px', color: strengthOf(step) === 'strong' ? 'var(--stamp-green)' : 'var(--ink-muted)', fontWeight: 700 }}>
+                                  ➔
+                                </span>
+                                <span style={{ fontSize: '9px', color: 'var(--ink-muted)', fontFamily: 'IBM Plex Mono, monospace', whiteSpace: 'nowrap' }}>
+                                  [{prettyRelationship(step.relationship_type)}]
                                 </span>
                               </div>
                             )}
@@ -272,6 +345,22 @@ export default function XaiConsolePage({ entities }) {
                         );
                       })}
                     </div>
+
+                    {/* Verbatim Evidence breakdown */}
+                    {pathObj.steps && pathObj.steps.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px dashed var(--border)', paddingTop: '10px' }}>
+                        {pathObj.steps.map((st, sIdx) => (
+                          <div key={sIdx} style={{ fontSize: '11.5px', color: 'var(--ink-soft)', lineHeight: '1.5' }}>
+                            <strong style={{ color: 'var(--ink)' }}>Step {sIdx + 1}:</strong> {st.from_name} is linked to {st.to_name} via <code style={{ color: 'var(--tag-amber)', background: 'var(--panel)', padding: '1px 4px', borderRadius: '2px' }}>{st.relationship_type}</code> in domain <em>{st.domain}</em>.
+                            {st.evidence && (
+                              <div style={{ fontStyle: 'italic', color: 'var(--ink-muted)', marginTop: '2px', paddingLeft: '14px', borderLeft: '2px solid var(--border)' }}>
+                                "{st.evidence}"
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -37,6 +37,7 @@ class CaseCreateRequest(BaseModel):
 
 class CaseUpdateRequest(BaseModel):
     archived: Optional[bool] = None
+    tag: Optional[str] = None
 
 
 def _serialize(c: CaseRecord) -> dict:
@@ -87,6 +88,8 @@ def create_case(
             existing.entities_label = req.entities
         if req.links is not None:
             existing.links_label = req.links
+        if req.tag is not None:
+            existing.tag = req.tag
         db.commit()
         log_audit(
             db, action="CASE_CREATE", username=current_user.username, user_id=current_user.id,
@@ -124,20 +127,33 @@ def update_case(
     ),
 ):
     if case_id == "case-all":
-        raise HTTPException(status_code=400, detail="The unified master view cannot be archived.")
+        raise HTTPException(status_code=400, detail="The unified master view cannot be archived or modified.")
     rec = db.query(CaseRecord).filter(CaseRecord.id == case_id, CaseRecord.hidden == False).first()  # noqa: E712
     if not rec:
         raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
 
     if req.archived is not None:
         rec.archived = req.archived
+        log_audit(
+            db,
+            action="CASE_ARCHIVE" if req.archived else "CASE_RESTORE",
+            username=current_user.username, user_id=current_user.id,
+            resource_type="CASE", resource_id=case_id,
+            details=f"Case '{rec.title}' {'archived' if req.archived else 'restored'}"
+        )
+
+    if req.tag is not None:
+        old_tag = rec.tag
+        rec.tag = req.tag
+        log_audit(
+            db,
+            action="CASE_STATUS_CHANGE",
+            username=current_user.username, user_id=current_user.id,
+            resource_type="CASE", resource_id=case_id,
+            details=f"Status changed from '{old_tag}' to '{req.tag}'"
+        )
+
     db.commit()
-    log_audit(
-        db,
-        action="CASE_ARCHIVE" if req.archived else "CASE_RESTORE",
-        username=current_user.username, user_id=current_user.id,
-        resource_type="CASE", resource_id=case_id,
-    )
     return _serialize(rec)
 
 
