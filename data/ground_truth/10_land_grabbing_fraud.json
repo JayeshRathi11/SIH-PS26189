@@ -1,0 +1,210 @@
+{
+  "entities": [
+    {
+      "canonical_id": "ENT_001",
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the fixer", "him", "the coordinator"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A7", "A8", "B1", "B2", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_002",
+      "canonical_name": "Prakash Jadhav",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Jadhav", "the local enforcer"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A6", "A7", "A8", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_003",
+      "canonical_name": "Rajendra Kulkarni",
+      "type": "PERSON",
+      "aliases_and_mentions": ["Advocate Kulkarni", "Kulkarni", "the advocate"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A4", "A5", "A6", "A7", "A8", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_004",
+      "canonical_name": "Shreeji Construction & Developers",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["the builder front", "the builder"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A4", "A5", "A7", "A8", "B1", "B2", "B4", "B5", "B6", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_005",
+      "canonical_name": "Unrelated neighbour boundary-wall dispute (unnamed parties)",
+      "type": "PERSON",
+      "aliases_and_mentions": ["two neighbouring landowners"],
+      "is_core_network": false,
+      "appears_in_docs": ["A3"]
+    },
+    {
+      "canonical_id": "ENT_006",
+      "canonical_name": "Unrelated business-partner property dispute (unnamed parties)",
+      "type": "PERSON",
+      "aliases_and_mentions": ["two business partners"],
+      "is_core_network": false,
+      "appears_in_docs": ["B4"]
+    },
+    {
+      "canonical_id": "ENT_007",
+      "canonical_name": "PS Wagholi",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["the thana"],
+      "is_core_network": false,
+      "appears_in_docs": ["A1", "A4", "A8", "B1", "B4", "B8"]
+    },
+    {
+      "canonical_id": "ENT_008",
+      "canonical_name": "Local records office",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["the local records office", "the office"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A6"]
+    },
+    {
+      "canonical_id": "ENT_009",
+      "canonical_name": "Shreeji Construction & Developers site office",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a site office", "the site office"],
+      "is_core_network": true,
+      "appears_in_docs": ["A5", "B2", "B3", "B5", "B8"]
+    },
+    {
+      "canonical_id": "ENT_010",
+      "canonical_name": "Roadside dhaba on the locality outskirts",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a roadside dhaba"],
+      "is_core_network": true,
+      "appears_in_docs": ["B6"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ENT_003",
+      "to": "ENT_004",
+      "type": "FORGED_DOCUMENT_FOR",
+      "location": "ENT_008",
+      "temporal_expression": "not specified (identified via records-office verification)",
+      "doc_evidence": ["A2"],
+      "description": "Records-office verification found the superseding ownership entry transferring land to Shreeji Construction & Developers had been filed by Advocate Kulkarni."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 18:10 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari, positively identified for the first time, handed Kulkarni a folder of documents while addressing both him and Jadhav at the site office."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 18:10 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari addressed Jadhav directly during the same site-office meeting where Kulkarni was handed documents."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "ASSOCIATED_WITH",
+      "location": "ENT_008",
+      "temporal_expression": "approximately 11:30 hrs",
+      "doc_evidence": ["A6"],
+      "description": "Jadhav met Kulkarni directly at a tea stall near the records office and handed him papers relating to an unflagged landholding, with no mention of the fixer overheard."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "ARRANGED_PAYMENT",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 17:45 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari handed Jadhav an envelope while continuing to speak with Kulkarni during a site-office meeting involving all three."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 17:45 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari addressed Kulkarni together with Jadhav during the same site-office visit involving a payment arrangement."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "ASSOCIATED_WITH",
+      "location": "ENT_009",
+      "temporal_expression": "yesterday evening",
+      "doc_evidence": ["B3"],
+      "description": "Jadhav and Kulkarni met directly at the site office to coordinate an intimidation and documentation timeline for an unflagged landholding, without the fixer present."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 19:15 hrs",
+      "doc_evidence": ["B5"],
+      "description": "Ansari reviewed documents with Kulkarni at the site office while Jadhav stood by, before addressing Jadhav directly."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 19:15 hrs",
+      "doc_evidence": ["B5"],
+      "description": "Ansari addressed Jadhav directly regarding a new landholding after reviewing documents with Kulkarni, within the same site-office visit."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": "ENT_010",
+      "temporal_expression": "approximately 20:40 hrs",
+      "doc_evidence": ["B6"],
+      "description": "Ansari met Jadhav at a roadside dhaba, and Kulkarni subsequently joined the conversation."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": "ENT_010",
+      "temporal_expression": "approximately 20:40 hrs",
+      "doc_evidence": ["B6"],
+      "description": "Ansari addressed Kulkarni together with Jadhav at the dhaba, handing Kulkarni a folded document."
+    }
+  ],
+  "timeline": [
+    {"doc_id": "A2", "relative_day_offset": 0, "time_of_day": "approximately 12:15 hrs", "event_summary": "Records-office verification found an ownership entry altered to transfer land to Shreeji Construction & Developers, filed by Advocate Kulkarni."},
+    {"doc_id": "A3", "relative_day_offset": 0, "time_of_day": null, "event_summary": "An informant identified an unrelated neighbour boundary-wall dispute as unconnected to the land-grabbing investigation."},
+    {"doc_id": "A1", "relative_day_offset": 1, "time_of_day": "approximately 17:20 hrs", "event_summary": "An FIR was registered describing repeated pressure by Jadhav to vacate land and a subsequently discovered altered ownership record."},
+    {"doc_id": "A6", "relative_day_offset": 1, "time_of_day": "approximately 11:30 hrs", "event_summary": "Field observation recorded Jadhav and Kulkarni meeting directly at a tea stall to hand over papers, with no fixer involvement."},
+    {"doc_id": "A5", "relative_day_offset": 2, "time_of_day": "approximately 18:10 hrs", "event_summary": "Field observation positively identified the fixer as Iqbal Ansari meeting both Kulkarni and Jadhav together at the builder's site office."},
+    {"doc_id": "A4", "relative_day_offset": 3, "time_of_day": "approximately 14:50 hrs", "event_summary": "A second landowner's complaint recorded the same pattern of intimidation and a similarly altered ownership record."},
+    {"doc_id": "A7", "relative_day_offset": 3, "time_of_day": null, "event_summary": "An informant reported Shreeji Construction & Developers taking possession of several additional plots following the established pattern."},
+    {"doc_id": "A8", "relative_day_offset": 4, "time_of_day": "approximately 10:40 hrs", "event_summary": "A follow-up FIR recorded the fixer's positive identification as Iqbal Ansari and flagged further affected landholdings."},
+    {"doc_id": "B1", "relative_day_offset": 5, "time_of_day": "approximately 09:55 hrs", "event_summary": "A follow-up FIR recorded independent informant corroboration of the fixer's identity as Iqbal Ansari."},
+    {"doc_id": "B2", "relative_day_offset": 5, "time_of_day": "approximately 17:45 hrs", "event_summary": "Field observation recorded a second joint site-office meeting in which Ansari arranged a payment involving both Jadhav and Kulkarni."},
+    {"doc_id": "B3", "relative_day_offset": 5, "time_of_day": null, "event_summary": "An informant reported Jadhav and Kulkarni coordinating directly at the site office for a new landholding, without the fixer present."},
+    {"doc_id": "B4", "relative_day_offset": 6, "time_of_day": "approximately 15:35 hrs", "event_summary": "An unrelated business-partner property dispute was verified as unconnected, alongside continued informant input on the network's ongoing activity."},
+    {"doc_id": "B5", "relative_day_offset": 6, "time_of_day": "approximately 19:15 hrs", "event_summary": "Field observation recorded a third joint site-office meeting in which Ansari reviewed documents with Kulkarni and addressed Jadhav directly."},
+    {"doc_id": "B6", "relative_day_offset": 6, "time_of_day": "approximately 20:40 hrs", "event_summary": "Field observation recorded a fourth joint meeting at a roadside dhaba involving Ansari, Jadhav, and Kulkarni."},
+    {"doc_id": "B7", "relative_day_offset": 7, "time_of_day": null, "event_summary": "An informant reported continued land acquisitions by Shreeji Construction & Developers and that the fixer was avoiding known meeting locations."},
+    {"doc_id": "B8", "relative_day_offset": 8, "time_of_day": "approximately 08:20 hrs", "event_summary": "Jadhav and Kulkarni were apprehended in a coordinated action, leaving Ansari as the sole network figure still at large."}
+  ],
+  "hub_bridging_docs": ["A5", "B2", "B5", "B6"],
+  "indirect_link_docs": ["A6", "B3"],
+  "red_herrings": [
+    {"mention": "two neighbouring landowners", "doc_id": "A3", "reason_excluded": "The dispute concerns a boundary wall being handled through the civil courts, with no connection to Shreeji Construction & Developers or any individual under investigation."},
+    {"mention": "two business partners", "doc_id": "B4", "reason_excluded": "Preliminary verification found the joint-ownership dispute had no connection to Shreeji Construction & Developers or to any of the individuals under investigation."}
+  ],
+  "cross_document_inconsistencies": []
+}

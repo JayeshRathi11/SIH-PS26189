@@ -1,0 +1,65 @@
+{
+  "entities": [
+    {
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "Sethji",
+        "the financier",
+        "Iqbal Ansari"
+      ]
+    },
+    {
+      "canonical_name": "Devendra Solanki",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "Devendra Solanki",
+        "Bunty"
+      ]
+    },
+    {
+      "canonical_name": "Iliyas Khan",
+      "type": "PERSON",
+      "aliases_and_mentions": [
+        "Iliyas Khan",
+        "Khan"
+      ]
+    },
+    {
+      "canonical_name": "MH12AB5678",
+      "type": "VEHICLE",
+      "aliases_and_mentions": [
+        "MH12AB5678"
+      ]
+    },
+    {
+      "canonical_name": "+91 99870 12345",
+      "type": "PHONE_NUMBER",
+      "aliases_and_mentions": [
+        "+91 99870 12345"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Iqbal Ansari",
+      "to": "Devendra Solanki",
+      "type": "INSTRUCTED"
+    },
+    {
+      "from": "Devendra Solanki",
+      "to": "Iliyas Khan",
+      "type": "ASSOCIATE_OF"
+    },
+    {
+      "from": "Devendra Solanki",
+      "to": "Iqbal Ansari",
+      "type": "CALLED"
+    },
+    {
+      "from": "Iliyas Khan",
+      "to": "MH12AB5678",
+      "type": "OWNS_VEHICLE"
+    }
+  ]
+}

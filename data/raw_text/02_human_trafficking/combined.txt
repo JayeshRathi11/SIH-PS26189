@@ -1,0 +1,17 @@
+DOC_ID: FIR_02_001 | TYPE: FIR | DOMAIN: 02_human_trafficking
+Complainant states that Manoj Tiwari, operating under the pretext of overseas employment placement via Sunrise Placement Services, recruited multiple individuals from rural districts. Informant reports indicate Manoj Tiwari reports to a central figure referred to as 'the contact' (I.A. / Iqbal Ansari). Call records show Manoj Tiwari received direct instructions from +91 99870 12345.
+
+###_DOC_START_###
+
+DOC_ID: INT_02_002 | TYPE: CALL_INTERCEPT | DOMAIN: 02_human_trafficking
+Intercepted conversation between Manoj Tiwari and the contact. The contact instructed Tiwari to expedite passport documentation through Sunrise Placement Services. Funds of Rs 15 Lakhs were transferred to Tiwari's account for travel arrangements.
+
+###_DOC_START_###
+
+DOC_ID: SURV_02_003 | TYPE: SURVEILLANCE | DOMAIN: 02_human_trafficking
+Surveillance team observed Rina Das coordinating with Manoj Tiwari outside Sunrise Placement Services office in Kolkata. Rina Das handed over a batch of transit travel documents. Phone verification confirmed Rina Das also received calls from +91 99870 12345.
+
+###_DOC_START_###
+
+DOC_ID: FIN_02_004 | TYPE: FINANCIAL_TRACE | DOMAIN: 02_human_trafficking
+Financial audit of Sunrise Placement Services revealed periodic structured deposits aggregating Rs 45 Lakhs. Major payments were routed onwards to accounts controlled by Iqbal Ansari.

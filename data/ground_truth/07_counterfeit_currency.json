@@ -1,0 +1,226 @@
+{
+  "entities": [
+    {
+      "canonical_id": "ENT_001",
+      "canonical_name": "Iqbal Ansari",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the source contact", "the man", "him"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A7", "A8", "B1", "B2", "B4", "B5", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_002",
+      "canonical_name": "Naseer Ahmed",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the courier", "Ahmed"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A4", "A5", "A6", "A7", "A8", "B1", "B2", "B3", "B4", "B5", "B7", "B8"]
+    },
+    {
+      "canonical_id": "ENT_003",
+      "canonical_name": "Vikas Chopra",
+      "type": "PERSON",
+      "aliases_and_mentions": ["the exchanger", "Chopra", "the fuel station's proprietor"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A4", "A5", "A6", "A8", "B1", "B4"]
+    },
+    {
+      "canonical_id": "ENT_004",
+      "canonical_name": "Chopra Fuel & Service Station",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["the fuel station", "the station"],
+      "is_core_network": true,
+      "appears_in_docs": ["A1", "A2", "A4", "A5", "A6", "A8", "B3", "B4", "B7"]
+    },
+    {
+      "canonical_id": "ENT_005",
+      "canonical_name": "Unnamed local trader",
+      "type": "PERSON",
+      "aliases_and_mentions": ["a local trader", "the complainant"],
+      "is_core_network": false,
+      "appears_in_docs": ["A1", "A3"]
+    },
+    {
+      "canonical_id": "ENT_006",
+      "canonical_name": "Unnamed general store (false-lead search)",
+      "type": "ORGANIZATION",
+      "aliases_and_mentions": ["an unrelated general store"],
+      "is_core_network": false,
+      "appears_in_docs": ["B6"]
+    },
+    {
+      "canonical_id": "ENT_007",
+      "canonical_name": "Unnamed associate managing fuel station in Chopra's absence",
+      "type": "PERSON",
+      "aliases_and_mentions": ["an unidentified associate", "the fuel-station-linked associate", "the associate"],
+      "is_core_network": true,
+      "appears_in_docs": ["B2", "B3", "B5", "B7"]
+    },
+    {
+      "canonical_id": "ENT_008",
+      "canonical_name": "PS Kotwali",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["the thana"],
+      "is_core_network": false,
+      "appears_in_docs": ["A1", "A4", "A8", "B1", "B4", "B8"]
+    },
+    {
+      "canonical_id": "ENT_009",
+      "canonical_name": "Roadside tea stall (Ahmed-Chopra handover site)",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a roadside tea stall"],
+      "is_core_network": true,
+      "appears_in_docs": ["A6"]
+    },
+    {
+      "canonical_id": "ENT_010",
+      "canonical_name": "Parked vehicle near district bus stand",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a parked vehicle"],
+      "is_core_network": true,
+      "appears_in_docs": ["A7"]
+    },
+    {
+      "canonical_id": "ENT_011",
+      "canonical_name": "Lodge on the highway outskirts",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a lodge"],
+      "is_core_network": true,
+      "appears_in_docs": ["B2"]
+    },
+    {
+      "canonical_id": "ENT_012",
+      "canonical_name": "Roadside dhaba on district outskirts",
+      "type": "LOCATION",
+      "aliases_and_mentions": ["a roadside dhaba"],
+      "is_core_network": true,
+      "appears_in_docs": ["B5"]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ENT_002",
+      "to": "ENT_003",
+      "type": "DISTRIBUTED_CONSIGNMENT",
+      "location": "ENT_009",
+      "temporal_expression": "approximately 09:40 hrs",
+      "doc_evidence": ["A6"],
+      "description": "Ahmed handed Chopra a small wrapped bundle at a roadside tea stall with no source contact present."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "MET",
+      "location": null,
+      "temporal_expression": "approximately 20:10 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari, positively identified for the first time, met Chopra at the fuel station's back office."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": null,
+      "temporal_expression": "approximately 20:10 hrs",
+      "doc_evidence": ["A5"],
+      "description": "Ansari met both Chopra and Ahmed together at the fuel station's back office during the same twenty-minute window."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_003",
+      "type": "INSTRUCTED",
+      "location": "ENT_010",
+      "temporal_expression": "approximately 22:05 hrs",
+      "doc_evidence": ["A7"],
+      "description": "Chopra approached a parked vehicle associated with the source contact and spoke briefly through the window."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "INSTRUCTED",
+      "location": "ENT_010",
+      "temporal_expression": "approximately 22:20 hrs",
+      "doc_evidence": ["A7"],
+      "description": "Ahmed separately approached the same parked vehicle and spoke briefly with the occupant within twenty minutes of Chopra's exchange."
+    },
+    {
+      "from": "ENT_003",
+      "to": "ENT_001",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": "not specified",
+      "doc_evidence": ["B1"],
+      "description": "Chopra, during questioning, disclosed that 'the source contact' is Iqbal Ansari, corroborating the earlier surveillance identification."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": "ENT_011",
+      "temporal_expression": "approximately 19:30 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari met Ahmed and the fuel-station-linked associate together at a lodge, handing Ahmed a small bag."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_007",
+      "type": "INSTRUCTED",
+      "location": "ENT_011",
+      "temporal_expression": "approximately 19:30 hrs",
+      "doc_evidence": ["B2"],
+      "description": "Ansari addressed both Ahmed and the fuel-station-linked associate together at the lodge meeting."
+    },
+    {
+      "from": "ENT_002",
+      "to": "ENT_007",
+      "type": "ASSOCIATED_WITH",
+      "location": null,
+      "temporal_expression": "yesterday evening",
+      "doc_evidence": ["B3"],
+      "description": "Ahmed and the associate met directly near the fuel station's rear gate to settle an exchange, without the source contact present."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_002",
+      "type": "MET",
+      "location": "ENT_012",
+      "temporal_expression": "approximately 21:00 hrs",
+      "doc_evidence": ["B5"],
+      "description": "Ansari met Ahmed and the associate together at a roadside dhaba, addressing both directly."
+    },
+    {
+      "from": "ENT_001",
+      "to": "ENT_007",
+      "type": "INSTRUCTED",
+      "location": "ENT_012",
+      "temporal_expression": "approximately 21:00 hrs",
+      "doc_evidence": ["B5"],
+      "description": "Ansari addressed the associate alongside Ahmed at the dhaba meeting, gesturing toward the associate's vehicle."
+    }
+  ],
+  "timeline": [
+    {"doc_id": "A2", "relative_day_offset": 0, "time_of_day": "approximately 11:20 hrs", "event_summary": "Surveillance observed routine activity at the fuel station and a brief unclear meeting in the back office."},
+    {"doc_id": "A3", "relative_day_offset": 0, "time_of_day": null, "event_summary": "An informant assessed the trader who received a fake note as a legitimate customer unconnected to the network."},
+    {"doc_id": "A1", "relative_day_offset": 1, "time_of_day": "approximately 18:40 hrs", "event_summary": "An FIR was registered based on a trader's complaint about a fake note, pointing investigators toward the fuel-station front."},
+    {"doc_id": "A6", "relative_day_offset": 1, "time_of_day": "approximately 09:40 hrs", "event_summary": "Surveillance recorded Ahmed handing Chopra a bundle directly at a tea stall with no third party present."},
+    {"doc_id": "A5", "relative_day_offset": 2, "time_of_day": "approximately 20:10 hrs", "event_summary": "Surveillance positively identified the source contact as Iqbal Ansari meeting both Chopra and Ahmed at the fuel station's back office."},
+    {"doc_id": "A4", "relative_day_offset": 3, "time_of_day": "approximately 12:15 hrs", "event_summary": "A follow-up FIR recorded continued informant input on the network's circulation activity via the fuel station."},
+    {"doc_id": "A7", "relative_day_offset": 3, "time_of_day": "approximately 22:05 hrs", "event_summary": "Surveillance recorded both Chopra and Ahmed separately receiving instruction from the source contact at a parked vehicle."},
+    {"doc_id": "A8", "relative_day_offset": 4, "time_of_day": "approximately 07:50 hrs", "event_summary": "Chopra was apprehended at the fuel station, while Ansari and Ahmed remained at large."},
+    {"doc_id": "B1", "relative_day_offset": 5, "time_of_day": "approximately 10:05 hrs", "event_summary": "Chopra disclosed during questioning that the source contact's real identity is Iqbal Ansari."},
+    {"doc_id": "B2", "relative_day_offset": 5, "time_of_day": "approximately 19:30 hrs", "event_summary": "Surveillance recorded Ansari meeting Ahmed and a new fuel-station associate together at a lodge."},
+    {"doc_id": "B3", "relative_day_offset": 5, "time_of_day": null, "event_summary": "An informant reported Ahmed and the associate meeting directly to settle an exchange, without the source contact present."},
+    {"doc_id": "B4", "relative_day_offset": 6, "time_of_day": "approximately 14:30 hrs", "event_summary": "A follow-up FIR recorded the fuel station's altered operating pattern and noted Ansari's number had gone silent."},
+    {"doc_id": "B5", "relative_day_offset": 6, "time_of_day": "approximately 21:00 hrs", "event_summary": "Surveillance recorded Ansari meeting Ahmed and the associate together at a roadside dhaba."},
+    {"doc_id": "B6", "relative_day_offset": 6, "time_of_day": null, "event_summary": "A tip about an unrelated general store circulating fake notes was verified and found to have no connection to the network."},
+    {"doc_id": "B7", "relative_day_offset": 7, "time_of_day": null, "event_summary": "An informant reported continued reduced-schedule operations at the fuel station and that the source contact was avoiding known locations."},
+    {"doc_id": "B8", "relative_day_offset": 8, "time_of_day": "approximately 09:10 hrs", "event_summary": "Ahmed was apprehended, leaving Ansari as the sole network figure still at large."}
+  ],
+  "hub_bridging_docs": ["A5", "A7", "B2", "B5"],
+  "indirect_link_docs": ["A6", "B3"],
+  "red_herrings": [
+    {"mention": "a local trader", "doc_id": "A3", "reason_excluded": "Assessed as a legitimate customer who unknowingly received a fake note with no connection to the fuel-station front or any individual under investigation."},
+    {"mention": "an unrelated general store", "doc_id": "B6", "reason_excluded": "Field verification found no irregularity in the store's records and no connection to the network; the tip was based on an unconfirmed rumour."}
+  ],
+  "cross_document_inconsistencies": []
+}
