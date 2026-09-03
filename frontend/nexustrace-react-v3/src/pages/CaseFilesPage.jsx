@@ -52,12 +52,19 @@ export default function CaseFilesPage({
   const [caseActionBusy, setCaseActionBusy] = useState(false);
   const [caseActionError, setCaseActionError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Archived cases are collapsed into their own toggleable section below the
+  // active grid, instead of being mixed in inline -- keeps the main list to
+  // what an officer is actually working on, while archived cases stay one
+  // click away rather than disappearing.
+  const [showArchived, setShowArchived] = useState(false);
 
   const filteredCases = cases.filter(
     (c) =>
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.caseId.toLowerCase().includes(search.toLowerCase())
   );
+  const activeFilteredCases = filteredCases.filter((c) => !c.archived);
+  const archivedFilteredCases = filteredCases.filter((c) => c.archived);
 
   const openedCase = cases.find((c) => c.id === openedCaseId);
   const isGlobalCase = (c) => !c || c.id === 'case-all' || c.tag === 'Global';
@@ -669,47 +676,79 @@ export default function CaseFilesPage({
       )}
 
       <div className="case-cards-grid">
-        {filteredCases.map((c) => {
-          const isGlobal = isGlobalCase(c);
-
-          return (
-            <div
-              key={c.id}
-              className="case-catalog-card"
-              onClick={() => handleOpenCase(c.id)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span className="case-code">{c.caseId}</span>
-                <span className={`ftag ${isGlobal ? 'global' : statusSlug(c.tag)}`}>{c.tag || 'Active'}</span>
-              </div>
-
-              <div className="case-catalog-title">
-                {c.title}
-                {c.archived && (
-                  <span style={{ marginLeft: '6px', fontSize: '9.5px', color: 'var(--tag-amber)', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
-                    ARCHIVED
-                  </span>
-                )}
-              </div>
-
-              <div className="case-catalog-stats">
-                <span><b>Entities:</b> {c.entities}</span>
-                <span><b>Links:</b> {c.links}</span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button
-                  className="tactical-btn"
-                  style={{ flex: 1, justifyContent: 'center' }}
-                  onClick={(e) => { e.stopPropagation(); handleOpenCase(c.id); }}
-                >
-                  Open case file
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {activeFilteredCases.map((c) => renderCaseCard(c))}
       </div>
+
+      {archivedFilteredCases.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="tactical-btn"
+            style={{
+              width: '100%',
+              justifyContent: 'space-between',
+              display: 'flex',
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--ink-muted)',
+            }}
+            aria-expanded={showArchived}
+          >
+            <span>&#128451; ARCHIVED CASES ({archivedFilteredCases.length})</span>
+            <span>{showArchived ? '▲ hide' : '▼ show'}</span>
+          </button>
+
+          {showArchived && (
+            <div className="case-cards-grid" style={{ marginTop: '12px', opacity: 0.85 }}>
+              {archivedFilteredCases.map((c) => renderCaseCard(c))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+
+  // Renders one case card -- shared by the active grid and the collapsible
+  // archived section below it, so both stay visually identical.
+  function renderCaseCard(c) {
+    const isGlobal = isGlobalCase(c);
+    return (
+      <div
+        key={c.id}
+        className="case-catalog-card"
+        onClick={() => handleOpenCase(c.id)}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className="case-code">{c.caseId}</span>
+          <span className={`ftag ${isGlobal ? 'global' : statusSlug(c.tag)}`}>{c.tag || 'Active'}</span>
+        </div>
+
+        <div className="case-catalog-title">
+          {c.title}
+          {c.archived && (
+            <span style={{ marginLeft: '6px', fontSize: '9.5px', color: 'var(--tag-amber)', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
+              ARCHIVED
+            </span>
+          )}
+        </div>
+
+        <div className="case-catalog-stats">
+          <span><b>Entities:</b> {c.entities}</span>
+          <span><b>Links:</b> {c.links}</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <button
+            className="tactical-btn"
+            style={{ flex: 1, justifyContent: 'center' }}
+            onClick={(e) => { e.stopPropagation(); handleOpenCase(c.id); }}
+          >
+            Open case file
+          </button>
+        </div>
+      </div>
+    );
+  }
 }

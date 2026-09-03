@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchCaseDocuments, submitInvestigatorFeedback, explainPath, getDossierDownloadUrl } from '../api/client';
+import { fetchCaseDocuments, submitInvestigatorFeedback, explainPath, downloadDossier } from '../api/client';
 
 function formatTimestamp(iso) {
   if (!iso) return null;
@@ -33,6 +33,7 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
   const [xaiResult, setXaiResult] = useState(null);
   const [xaiLoading, setXaiLoading] = useState(false);
   const [xaiError, setXaiError] = useState(null);
+  const [dossierDownloading, setDossierDownloading] = useState(false);
 
   useEffect(() => {
     setSelectedDocId(null);
@@ -100,6 +101,18 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
     }
   };
 
+  const handleDownloadDossier = async () => {
+    if (!entity) return;
+    setDossierDownloading(true);
+    try {
+      await downloadDossier(entity.id, `dossier_${entity.name || entity.id}.pdf`);
+    } catch (err) {
+      alert(err.message || 'Failed to download dossier.');
+    } finally {
+      setDossierDownloading(false);
+    }
+  };
+
   if (!entity) {
     return (
       <div className="detail-inner">
@@ -109,8 +122,6 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
       </div>
     );
   }
-
-  const dossierUrl = getDossierDownloadUrl(entity.id);
 
   return (
     <div className="detail-inner">
@@ -137,16 +148,16 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
 
       {/* Quick Tactical Action Buttons */}
       <div style={{ display: 'flex', gap: '6px' }}>
-        <a
-          href={dossierUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={handleDownloadDossier}
+          disabled={dossierDownloading}
           className="tactical-btn export"
           style={{ flex: 1, justifyContent: 'center', fontSize: '10.5px', padding: '5px 8px' }}
           title="Download Formal Court Evidentiary Dossier (PDF)"
         >
-          📄 Court Brief (PDF)
-        </a>
+          {dossierDownloading ? 'Downloading...' : '📄 Court Brief (PDF)'}
+        </button>
         <button
           onClick={handleExplainToHub}
           disabled={xaiLoading}

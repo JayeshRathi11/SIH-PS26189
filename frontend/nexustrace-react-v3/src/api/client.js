@@ -426,6 +426,37 @@ export function getDossierDownloadUrl(entityId) {
   return `/api/dossier/download/${encodeURIComponent(entityId || 'ENT_HUB_IQBAL_ANSARI')}`;
 }
 
+// The endpoint above requires an authenticated Bearer token (see backend
+// routers/dossier.py). A plain <a href={...}> tag never sends that header,
+// so a bare click just hits the browser's default fetch with no auth and
+// fails silently / shows a JSON 401 instead of downloading the PDF. This
+// helper does a real authenticated fetch, pulls the PDF back as a Blob,
+// and triggers the save via a temporary object URL + programmatic click --
+// the standard pattern for downloading an auth-gated file from the browser.
+export async function downloadDossier(entityId, fileName) {
+  const url = getDossierDownloadUrl(entityId);
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    let detail = `HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      detail = formatErrorDetail(body?.detail) || detail;
+    } catch (_) {
+      // response wasn't JSON (e.g. an actual PDF error page) -- keep the status code
+    }
+    throw new Error(`Failed to download dossier: ${detail}`);
+  }
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = fileName || `dossier_${entityId || 'entity'}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(objectUrl);
+}
+
 // ----------------------------------------------------
 // Security & Audit Logs API
 // ----------------------------------------------------

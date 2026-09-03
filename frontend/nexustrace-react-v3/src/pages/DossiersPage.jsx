@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchCaseDocuments, getDossierDownloadUrl } from '../api/client';
+import { fetchCaseDocuments, downloadDossier } from '../api/client';
 
 export default function DossiersPage({
   cases,
@@ -12,6 +12,7 @@ export default function DossiersPage({
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState(null);
   const [expandedDocIdx, setExpandedDocIdx] = useState(null);
+  const [dossierDownloading, setDossierDownloading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -38,7 +39,16 @@ export default function DossiersPage({
     centrality: 0.9221
   };
 
-  const dossierPdfUrl = getDossierDownloadUrl(selectedEntityId);
+  const handleDownloadDossier = async () => {
+    setDossierDownloading(true);
+    try {
+      await downloadDossier(selectedEntityId, `dossier_${targetEntity.name || selectedEntityId}.pdf`);
+    } catch (err) {
+      alert(err.message || 'Failed to download dossier.');
+    } finally {
+      setDossierDownloading(false);
+    }
+  };
 
   return (
     <div className="page-container">
@@ -115,15 +125,15 @@ export default function DossiersPage({
             </div>
           </div>
 
-          <a
-            href={dossierPdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={handleDownloadDossier}
+            disabled={dossierDownloading}
             className="tactical-btn export"
             style={{ width: '100%', justifyContent: 'center', padding: '10px 14px', fontSize: '12.5px' }}
           >
-            📄 Download Formal Court Dossier (PDF)
-          </a>
+            {dossierDownloading ? 'Downloading...' : '📄 Download Formal Court Dossier (PDF)'}
+          </button>
         </div>
 
         {/* Primary Documents Index & Hash Table */}

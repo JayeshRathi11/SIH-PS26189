@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getDossierDownloadUrl } from '../api/client';
+import { downloadDossier } from '../api/client';
 
 export default function EntitiesRegistryPage({
   entities,
@@ -13,6 +13,18 @@ export default function EntitiesRegistryPage({
   const [sortBy, setSortBy] = useState('centrality'); // 'centrality' | 'connections' | 'name'
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadDossier = async (entity) => {
+    setDownloadingId(entity.id);
+    try {
+      await downloadDossier(entity.id, `dossier_${entity.name || entity.id}.pdf`);
+    } catch (err) {
+      alert(err.message || 'Failed to download dossier.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const entityTypes = [
     { id: 'ALL', label: 'All Types' },
@@ -185,7 +197,6 @@ export default function EntitiesRegistryPage({
                   const isConfirmed = entity.verified_by_officer || entity.status === 'CONFIRMED';
                   const isRejected = entity.status === 'REJECTED';
                   const centrality = typeof entity.centrality === 'number' ? entity.centrality.toFixed(4) : entity.centrality;
-                  const dossierUrl = getDossierDownloadUrl(entity.id);
 
                   return (
                     <tr
@@ -275,16 +286,16 @@ export default function EntitiesRegistryPage({
                           >
                             📌 Board
                           </button>
-                          <a
-                            href={dossierUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadDossier(entity)}
+                            disabled={downloadingId === entity.id}
                             className="tactical-btn export"
                             style={{ padding: '3px 8px', fontSize: '10.5px' }}
                             title="Download court report (PDF)"
                           >
-                            📄 PDF
-                          </a>
+                            {downloadingId === entity.id ? '...' : '📄 PDF'}
+                          </button>
                         </div>
                       </td>
                     </tr>
