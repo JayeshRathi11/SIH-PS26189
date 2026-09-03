@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { explainPath } from '../api/client';
 
 // A link counts as "strong" when the backend's own confidence score for that
@@ -18,6 +18,66 @@ function prettyRelationship(relType) {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
+
+// Fixed, hand-curated set of example pairs -- verified live against the real
+// deployed graph (not auto-generated from whatever's currently loaded, like
+// the old "quick examples" were). These live in the stable seed domains
+// (loan fraud / case-amber / the 10 stock crime domains), which the demo
+// reset script never touches, so they stay correct across demo runs. Each
+// one is chosen to show a different kind of answer Pathfinder can give:
+// a direct/strong link, a weak/inferred one, a confirmed non-connection,
+// and two independent multi-hop chains through different entity types.
+const CURATED_EXAMPLES = [
+  {
+    tag: 'STRONG',
+    tagColor: 'var(--stamp-green)',
+    source: 'Naseem Contractor',
+    target: 'Iqbal Deol',
+    desc: 'Direct, 1-hop evidence-backed connection',
+  },
+  {
+    tag: 'WEAK',
+    tagColor: 'var(--tag-amber)',
+    source: 'Naseem Contractor',
+    target: 'Punjab',
+    desc: 'Inferred co-location, not a confirmed transaction',
+  },
+  {
+    tag: 'NO LINK',
+    tagColor: 'var(--stamp-red)',
+    source: 'Purported Financial Consultancy',
+    target: 'Naseem Contractor',
+    desc: 'Correctly shown as unconnected',
+  },
+  {
+    tag: 'NO LINK',
+    tagColor: 'var(--stamp-red)',
+    source: 'Harjeet Singh',
+    target: 'Devraj Oberoi',
+    desc: 'Cross-domain, no path exists',
+  },
+  {
+    tag: 'MULTI-HOP',
+    tagColor: 'var(--ink-soft)',
+    source: 'Ranjit Bhullar',
+    target: 'Intermediate Account',
+    desc: '4-hop chain via Iqbal Deol and Naseem Contractor',
+  },
+  {
+    tag: 'CROSS-CASE',
+    tagColor: 'var(--ink-soft)',
+    source: 'Devraj Oberoi',
+    target: 'Recovered Mule Account Kits',
+    desc: '2-hop, links two separately-filed cases via Priyanka Solanki',
+  },
+  {
+    tag: 'MULTI-HOP',
+    tagColor: 'var(--ink-soft)',
+    source: 'Grey Honda City',
+    target: 'Dubai Hawala Accounts',
+    desc: '3-hop chain, a vehicle linking to an overseas hawala account',
+  },
+];
 
 export default function XaiConsolePage({ entities }) {
   // Previously defaulted to hardcoded names from the old demo dataset
@@ -53,26 +113,24 @@ export default function XaiConsolePage({ entities }) {
     }
   };
 
-  // Built from whichever entities are actually loaded (highest-connection
-  // ones first, since those are the most likely to have a real path
-  // between them), instead of names baked in from one specific dataset.
-  const sampleSubjects = useMemo(() => {
-    const ranked = [...entities]
-      .filter((e) => e?.name)
-      .sort((a, b) => (b.connections || 0) - (a.connections || 0))
-      .slice(0, 5);
-    if (ranked.length < 2) return [];
-    const pairs = [];
-    for (let i = 0; i < ranked.length - 1 && pairs.length < 4; i++) {
-      pairs.push({ source: ranked[i].name, target: ranked[i + 1].name, desc: 'See how these two connect' });
-    }
-    return pairs;
-  }, [entities]);
-
-  const handleSetSample = (s, t) => {
+  // Curated examples run immediately on click -- no second click on
+  // "Find the Connection" needed. Uses the clicked pair directly rather than
+  // relying on sourceName/targetName state, which wouldn't be updated yet
+  // inside this same synchronous handler.
+  const handleRunCurated = async (source, target) => {
     setUserEdited(true);
-    setSourceName(s);
-    setTargetName(t);
+    setSourceName(source);
+    setTargetName(target);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await explainPath(source, target, 8);
+      setResult(data);
+    } catch (err) {
+      setError(err.message || 'Could not find a connection between these two people.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Chain strength = weakest link: one weak connection is enough to make the
@@ -145,28 +203,42 @@ export default function XaiConsolePage({ entities }) {
           </button>
         </form>
 
-        {/* Quick Picks -- only shown once there's real, loaded data to draw from */}
-        {sampleSubjects.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--border)', marginTop: '16px', paddingTop: '12px' }}>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '10px', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: '8px' }}>
-              Quick examples:
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {sampleSubjects.map((s, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSetSample(s.source, s.target)}
-                  className="filter-chip"
-                  style={{ textAlign: 'left' }}
-                  title={s.desc}
-                >
-                  {s.source} → {s.target}
-                </button>
-              ))}
-            </div>
+        {/* Curated examples -- click one to run it immediately, no typing or
+            second click needed. Covers a strong link, a weak link, two
+            confirmed non-connections, and two independent multi-hop chains. */}
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: '16px', paddingTop: '12px' }}>
+          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '10px', textTransform: 'uppercase', color: 'var(--ink-muted)', marginBottom: '8px' }}>
+            Curated examples — click to run:
           </div>
-        )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {CURATED_EXAMPLES.map((ex, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleRunCurated(ex.source, ex.target)}
+                disabled={loading}
+                className="filter-chip"
+                style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title={ex.desc}
+              >
+                <span
+                  style={{
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: '8.5px',
+                    fontWeight: 700,
+                    color: ex.tagColor,
+                    border: `1px solid ${ex.tagColor}`,
+                    borderRadius: '2px',
+                    padding: '1px 4px',
+                  }}
+                >
+                  {ex.tag}
+                </span>
+                {ex.source} → {ex.target}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Output */}

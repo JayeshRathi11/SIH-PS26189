@@ -366,14 +366,6 @@ export default function CaseFilesPage({
                 {openedCase.archived ? '↩ Restore' : '\u{1F5C4}️ Archive'}
               </button>
             )}
-            {!global && (
-              <span
-                title="Archiving only removes a case from the active list. No evidence, entity, relationship, or document is ever destroyed -- everything stays intact and every change is permanently recorded in the audit log."
-                style={{ fontSize: '10px', fontFamily: 'IBM Plex Mono, monospace', color: 'var(--ink-muted)', display: 'flex', alignItems: 'center', paddingLeft: '2px' }}
-              >
-                &#9432; nothing is ever destroyed
-              </span>
-            )}
             {/* Hard "Delete" intentionally removed from the UI: evidence-handling
                 software should never present an action that reads as destructive.
                 Archive (above) already covers the real need -- reversibly removing
