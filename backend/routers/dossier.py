@@ -65,7 +65,16 @@ def generate_dossier(
     ]
 
     # Fetch evidence records from ledger
-    evidence_records = db.query(EvidenceLedgerRecord).limit(10).all()
+    entity_domains = entity_rec.domains or []
+    evidence_query = db.query(EvidenceLedgerRecord)
+    if entity_domains:
+        evidence_query = evidence_query.filter(EvidenceLedgerRecord.domain.in_(entity_domains))
+    else:
+        # No recorded domain for this entity -- don't fall back to an
+        # unrelated global list; an honest empty section beats evidence
+        # that has nothing to do with the subject of the dossier.
+        evidence_query = evidence_query.filter(False)
+    evidence_records = evidence_query.limit(10).all()
     ev_list = [
         {
             "doc_id": e.doc_id,
@@ -146,7 +155,16 @@ def download_dossier_by_id(
         for r in relationships
     ]
 
-    evidence_records = db.query(EvidenceLedgerRecord).limit(10).all()
+    entity_domains = entity_rec.domains or []
+    evidence_query = db.query(EvidenceLedgerRecord)
+    if entity_domains:
+        evidence_query = evidence_query.filter(EvidenceLedgerRecord.domain.in_(entity_domains))
+    else:
+        # No recorded domain for this entity -- don't fall back to an
+        # unrelated global list; an honest empty section beats evidence
+        # that has nothing to do with the subject of the dossier.
+        evidence_query = evidence_query.filter(False)
+    evidence_records = evidence_query.limit(10).all()
     ev_list = [
         {
             "doc_id": e.doc_id,

@@ -1,5 +1,6 @@
 import os
 import io
+import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from reportlab.lib.pagesizes import letter
@@ -9,6 +10,15 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+
+def _pretty_relationship(rel_type: str) -> str:
+    """"ASSOCIATE_OF" -> "Associate Of" -- matches the frontend's own formatting
+    (XaiConsolePage.jsx's prettyRelationship) so the raw enum never reaches a
+    reader of the printed dossier."""
+    if not rel_type:
+        return "Associated With"
+    return " ".join(w.capitalize() for w in rel_type.replace("-", "_").split("_") if w)
+
 
 class CourtDossierGenerator:
     """
@@ -88,7 +98,10 @@ class CourtDossierGenerator:
             fontName='Courier',
             fontSize=7.5,
             leading=10,
-            textColor=colors.HexColor('#0284C7')
+            # Was a bright cyan-blue that read as an unclickable web link in a
+            # formal government document; a neutral slate keeps the
+            # monospace "this is a hash" look without the link styling.
+            textColor=colors.HexColor('#475569')
         )
 
     def generate_dossier_pdf(self, entity: Dict[str, Any], relationships: List[Dict[str, Any]],
@@ -114,7 +127,13 @@ class CourtDossierGenerator:
         elements.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor('#0F172A'), spaceAfter=12))
 
         # Dossier Metadata Bar
-        dossier_no = f"MHA-NCRB-DS-{datetime.utcnow().strftime('%Y%m%d')}-{entity.get('canonical_id', 'E01')[-6:]}"
+        # Derived from the subject's own name (last token, e.g. surname) rather
+        # than a slice of the internal canonical_id -- that used to produce
+        # artifacts like "-_SINGH" (a stray leading underscore) whenever the id
+        # happened to be exactly 6+1 chars past a word boundary.
+        name_tokens = re.findall(r"[A-Za-z0-9]+", entity.get("canonical_name") or "ENTITY")
+        dossier_ref_suffix = (name_tokens[-1].upper() if name_tokens else "ENTITY")[:12]
+        dossier_no = f"MHA-NCRB-DS-{datetime.utcnow().strftime('%Y%m%d')}-{dossier_ref_suffix}"
         meta_table_data = [
             [
                 Paragraph(f"<b>Dossier Ref:</b> {dossier_no}", self.body_style),
@@ -163,9 +182,24 @@ class CourtDossierGenerator:
         # 3. Network Centrality & Role Analysis
         elements.append(Paragraph("2. NETWORK CENTRALITY & SYNDICATE ROLE ANALYSIS", self.heading_style))
         hub_score = entity.get("hub_score", 0.05)
-        role_label = "Transnational Syndicate Kingpin / Chief Coordinator" if hub_score >= 0.2 else (
-            "Regional Sub-Controller / Cell Leader" if hub_score >= 0.05 else "Field Operative / Courier / Front Asset"
-        )
+        # The real graph's hub_score (networkx centrality) tops out around
+        # 0.02 even for the actual cross-domain kingpin -- the old 0.05/0.2
+        # thresholds were calibrated for a scale this data never reaches, so
+        # every single entity fell into the bottom "Field Operative" bucket
+        # regardless of how central they actually are (a one-tie courier and
+        # the hub present in all 10 crime domains got the identical label).
+        # Domain span and direct-tie count are the reliable, self-evident
+        # signals already on the page, so they lead; hub_score is a
+        # secondary tiebreaker at a scale that matches what this graph
+        # actually produces.
+        domain_span = len(domains_list)
+        tie_count = len(relationships)
+        if domain_span >= 4 or hub_score >= 0.015:
+            role_label = "Transnational Syndicate Kingpin / Chief Coordinator"
+        elif domain_span >= 2 or tie_count >= 3 or hub_score >= 0.012:
+            role_label = "Regional Sub-Controller / Cell Leader"
+        else:
+            role_label = "Field Operative / Courier / Front Asset"
         
         centrality_data = [
             [Paragraph("<b>Combined Hub Score:</b>", self.body_bold), Paragraph(f"<b>{hub_score:.4f}</b>", self.body_bold)],
@@ -190,12 +224,16 @@ class CourtDossierGenerator:
             rel_rows = [rel_headers]
             for r in relationships[:12]:
                 tgt = r.get("target_canonical", r.get("target_id", "Unknown"))
-                rtype = r.get("relationship_type", "ASSOCIATE_OF")
+                rtype = _pretty_relationship(r.get("relationship_type", "ASSOCIATE_OF"))
                 dom = r.get("domain", "").replace("_", " ").title()
-                ev = (r.get("evidence") or "Direct investigative link")[:90] + "..."
+                ev_raw = (r.get("evidence") or "Direct investigative link").strip()
+                # Only ellipsize when actually truncated -- previously every
+                # row got a trailing "..." appended unconditionally, so even
+                # a short evidence line looked cut off.
+                ev = ev_raw if len(ev_raw) <= 140 else ev_raw[:140].rstrip() + "..."
                 rel_rows.append([
                     Paragraph(tgt, self.body_style),
-                    Paragraph(f"<font color='#2563EB'>{rtype}</font>", self.body_style),
+                    Paragraph(rtype, self.body_style),
                     Paragraph(dom, self.body_style),
                     Paragraph(ev, self.quote_style)
                 ])

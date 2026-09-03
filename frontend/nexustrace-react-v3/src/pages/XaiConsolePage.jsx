@@ -28,55 +28,13 @@ function prettyRelationship(relType) {
 // a direct/strong link, a weak/inferred one, a confirmed non-connection,
 // and two independent multi-hop chains through different entity types.
 const CURATED_EXAMPLES = [
-  {
-    tag: 'STRONG',
-    tagColor: 'var(--stamp-green)',
-    source: 'Naseem Contractor',
-    target: 'Iqbal Deol',
-    desc: 'Direct, 1-hop evidence-backed connection',
-  },
-  {
-    tag: 'WEAK',
-    tagColor: 'var(--tag-amber)',
-    source: 'Naseem Contractor',
-    target: 'Punjab',
-    desc: 'Inferred co-location, not a confirmed transaction',
-  },
-  {
-    tag: 'NO LINK',
-    tagColor: 'var(--stamp-red)',
-    source: 'Purported Financial Consultancy',
-    target: 'Naseem Contractor',
-    desc: 'Correctly shown as unconnected',
-  },
-  {
-    tag: 'NO LINK',
-    tagColor: 'var(--stamp-red)',
-    source: 'Harjeet Singh',
-    target: 'Devraj Oberoi',
-    desc: 'Cross-domain, no path exists',
-  },
-  {
-    tag: 'MULTI-HOP',
-    tagColor: 'var(--ink-soft)',
-    source: 'Ranjit Bhullar',
-    target: 'Intermediate Account',
-    desc: '4-hop chain via Iqbal Deol and Naseem Contractor',
-  },
-  {
-    tag: 'CROSS-CASE',
-    tagColor: 'var(--ink-soft)',
-    source: 'Devraj Oberoi',
-    target: 'Recovered Mule Account Kits',
-    desc: '2-hop, links two separately-filed cases via Priyanka Solanki',
-  },
-  {
-    tag: 'MULTI-HOP',
-    tagColor: 'var(--ink-soft)',
-    source: 'Grey Honda City',
-    target: 'Dubai Hawala Accounts',
-    desc: '3-hop chain, a vehicle linking to an overseas hawala account',
-  },
+  { source: 'Naseem Contractor', target: 'Iqbal Deol', desc: 'Direct, 1-hop evidence-backed connection' },
+  { source: 'Naseem Contractor', target: 'Punjab', desc: 'Inferred co-location, not a confirmed transaction' },
+  { source: 'Purported Financial Consultancy', target: 'Naseem Contractor', desc: 'Correctly shown as unconnected' },
+  { source: 'Harjeet Singh', target: 'Devraj Oberoi', desc: 'Cross-domain, no path exists' },
+  { source: 'Ranjit Bhullar', target: 'Intermediate Account', desc: '4-hop chain via Iqbal Deol and Naseem Contractor' },
+  { source: 'Devraj Oberoi', target: 'Recovered Mule Account Kits', desc: '2-hop, links two separately-filed cases via Priyanka Solanki' },
+  { source: 'Grey Honda City', target: 'Dubai Hawala Accounts', desc: '3-hop chain, a vehicle linking to an overseas hawala account' },
 ];
 
 export default function XaiConsolePage({ entities }) {
@@ -218,22 +176,9 @@ export default function XaiConsolePage({ entities }) {
                 onClick={() => handleRunCurated(ex.source, ex.target)}
                 disabled={loading}
                 className="filter-chip"
-                style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ textAlign: 'left' }}
                 title={ex.desc}
               >
-                <span
-                  style={{
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: '8.5px',
-                    fontWeight: 700,
-                    color: ex.tagColor,
-                    border: `1px solid ${ex.tagColor}`,
-                    borderRadius: '2px',
-                    padding: '1px 4px',
-                  }}
-                >
-                  {ex.tag}
-                </span>
                 {ex.source} → {ex.target}
               </button>
             ))}
