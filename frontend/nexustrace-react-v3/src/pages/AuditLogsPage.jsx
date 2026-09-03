@@ -82,6 +82,50 @@ export default function AuditLogsPage({ currentUser }) {
   const goPrev = () => setPage((p) => Math.max(0, p - 1));
   const goNext = () => setPage((p) => Math.min(totalPages - 1, p + 1));
 
+  // Tampering-caught detection: purely derived from entries already on
+  // screen, no backend change. For each resource that received more than
+  // one INVESTIGATOR_FEEDBACK_SUBMITTED verdict, walk them oldest-to-newest
+  // (entries arrive newest-first from the API) -- any entry submitted by a
+  // DIFFERENT username than the one immediately before it on that same
+  // resource is a corrective override: one officer's verdict was reversed
+  // by another. That's the "tampering found" moment made visible.
+  const parseVerdict = (details) => {
+    const m = /Verdict:\s*([A-Z]+)/i.exec(details || '');
+    return m ? m[1].toUpperCase() : null;
+  };
+
+  const overrides = useMemo(() => {
+    const feedbackEntries = entries.filter(
+      (e) => e.action === 'INVESTIGATOR_FEEDBACK_SUBMITTED' && e.resource_id
+    );
+    const byResource = {};
+    feedbackEntries.forEach((e) => {
+      (byResource[e.resource_id] = byResource[e.resource_id] || []).push(e);
+    });
+    const map = {}; // entry.id -> override info
+    const list = [];
+    Object.values(byResource).forEach((group) => {
+      const chrono = [...group].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      for (let i = 1; i < chrono.length; i++) {
+        const prev = chrono[i - 1];
+        const cur = chrono[i];
+        if (prev.username && cur.username && prev.username !== cur.username) {
+          const info = {
+            prevUsername: prev.username,
+            prevVerdict: parseVerdict(prev.details),
+            newUsername: cur.username,
+            newVerdict: parseVerdict(cur.details),
+            resource: cur.resource_id,
+            timestamp: cur.timestamp,
+          };
+          map[cur.id] = info;
+          list.push(info);
+        }
+      }
+    });
+    return { map, list };
+  }, [entries]);
+
   return (
     <div className="page-container">
       {/* Header */}
@@ -129,6 +173,28 @@ export default function AuditLogsPage({ currentUser }) {
           {verifyResult.valid
             ? `✓ CHAIN VALID — all ${verifyResult.total_entries ?? 0} entries recomputed and matched. No tampering detected.`
             : `⚠️ CHAIN INTEGRITY FAILURE — ${verifyResult.message || 'a stored hash did not match its recomputed value.'}${verifyResult.broken_at ? ` (first break at entry ${verifyResult.broken_at})` : ''}`}
+        </div>
+      )}
+
+      {overrides.list.length > 0 && (
+        <div style={{
+          margin: '0 0 16px',
+          padding: '12px 14px',
+          borderRadius: '3px',
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: '12px',
+          background: 'var(--tag-amber-bg)',
+          border: '1px solid var(--tag-amber)',
+          color: 'var(--tag-amber)'
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: overrides.list.length ? '6px' : 0 }}>
+            🚩 {overrides.list.length} CORRECTIVE OVERRIDE{overrides.list.length > 1 ? 'S' : ''} DETECTED — a verdict was reversed by a different officer
+          </div>
+          {overrides.list.map((o, i) => (
+            <div key={i} style={{ fontSize: '11px', opacity: 0.9 }}>
+              {o.newUsername} reversed {o.prevUsername}'s {o.prevVerdict || 'earlier'} verdict on {o.resource} → now {o.newVerdict || 'updated'} ({formatTimestamp(o.timestamp)})
+            </div>
+          ))}
         </div>
       )}
 
@@ -214,8 +280,17 @@ export default function AuditLogsPage({ currentUser }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {pageEntries.map((entry) => (
-                    <tr key={entry.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="entity-row-hover">
+                  {pageEntries.map((entry) => {
+                    const overrideInfo = overrides.map[entry.id];
+                    return (
+                    <tr
+                      key={entry.id}
+                      style={{
+                        borderBottom: '1px solid var(--border-subtle)',
+                        background: overrideInfo ? 'var(--tag-amber-bg)' : undefined,
+                      }}
+                      className="entity-row-hover"
+                    >
                       <td style={{ padding: '12px 14px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: 'var(--tag-amber)' }}>
                         AUD-{entry.id}
                       </td>
@@ -238,6 +313,11 @@ export default function AuditLogsPage({ currentUser }) {
                       </td>
                       <td style={{ padding: '12px 14px', color: 'var(--ink-soft)', fontSize: '11px', maxWidth: '260px' }} title={entry.details || ''}>
                         {entry.details || '—'}
+                        {overrideInfo && (
+                          <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--tag-amber)', fontSize: '10px' }}>
+                            🚩 OVERRIDES {overrideInfo.prevUsername}'s {overrideInfo.prevVerdict || 'earlier'} verdict
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span className="conf-stamp" style={{ fontSize: '8px' }}>
@@ -254,7 +334,8 @@ export default function AuditLogsPage({ currentUser }) {
                         {shortHash(entry.entry_hash)}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
