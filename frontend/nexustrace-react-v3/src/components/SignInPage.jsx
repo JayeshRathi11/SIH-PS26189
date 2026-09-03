@@ -10,6 +10,7 @@ import { loginUser } from '../api/client';
 // via onAuthenticated.
 const QUICK_USERS = [
   { name: 'Lead Investigator', user: 'investigator_01', pass: 'Investigate#2026', role: 'INVESTIGATOR', badge: 'INV-8821' },
+  { name: 'Field Investigator 02', user: 'investigator_02', pass: 'Investigate#2026B', role: 'INVESTIGATOR', badge: 'INV-8822' },
   { name: 'NCRB Administrator', user: 'ncrb_admin', pass: 'Admin#MHA2026', role: 'OFFICER_IN_CHARGE', badge: 'ADM-001' },
   { name: 'Judicial Auditor', user: 'judicial_auditor', pass: 'Audit#Secure2026', role: 'AUDITOR', badge: 'AUD-904' },
 ];

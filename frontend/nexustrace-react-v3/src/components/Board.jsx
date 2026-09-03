@@ -20,7 +20,22 @@ export default function Board({
   onClearPatternFocus,
   onFeedbackUpdated,
 }) {
-  const [activeFilter, setActiveFilter] = useState('All');
+  // Multiple POLE pills can be active at once (e.g. Persons + Orgs together) --
+  // an entity is visible if it matches ANY selected pill (OR/union), matching how
+  // investigators actually narrow a board: "show me people OR organizations".
+  // 'All' is exclusive -- selecting it clears every other pill, and selecting any
+  // other pill drops 'All'; the set can never go empty (falls back to 'All').
+  const [activeFilters, setActiveFilters] = useState(['All']);
+  const toggleFilter = (f) => {
+    setActiveFilters((prev) => {
+      if (f === 'All') return ['All'];
+      const withoutAll = prev.filter((x) => x !== 'All');
+      const next = withoutAll.includes(f)
+        ? withoutAll.filter((x) => x !== f)
+        : [...withoutAll, f];
+      return next.length === 0 ? ['All'] : next;
+    });
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -119,18 +134,22 @@ export default function Board({
       return { visibleEntities: filtered, activeSearchSeedIds: matchedSeedIds };
     }
 
-    // No search query: filter by POLE categories
-    const filtered = entities.filter((e) => {
-      if (activeFilter === 'Persons') return e.type === 'person';
-      if (activeFilter === 'Locations') return e.type === 'location';
-      if (activeFilter === 'Orgs') return e.type === 'org';
-      if (activeFilter === 'Financial') return e.type === 'bank' || e.type === 'phone';
-      if (activeFilter === 'High Risk') return typeof e.centrality === 'number' ? e.centrality > 0.4 : false;
-      return true;
-    });
+    // No search query: filter by POLE categories -- an entity passes if it
+    // matches ANY currently-active pill (union), so "Persons" + "Orgs" shows both.
+    const matchesOne = (e, f) => {
+      if (f === 'Persons') return e.type === 'person';
+      if (f === 'Locations') return e.type === 'location';
+      if (f === 'Orgs') return e.type === 'org';
+      if (f === 'Financial') return e.type === 'bank' || e.type === 'phone';
+      if (f === 'High Risk') return typeof e.centrality === 'number' ? e.centrality > 0.4 : false;
+      return true; // 'All'
+    };
+    const filtered = activeFilters.includes('All')
+      ? entities
+      : entities.filter((e) => activeFilters.some((f) => matchesOne(e, f)));
 
     return { visibleEntities: filtered, activeSearchSeedIds: matchedSeedIds };
-  }, [entities, activeFilter, searchQuery]);
+  }, [entities, activeFilters, searchQuery]);
 
   // Compute thread SVG paths with realistic catenary sag curves & multi-edge curvature
   const paths = useMemo(() => {
@@ -397,8 +416,9 @@ export default function Board({
           {poleFilters.map((f) => (
             <span
               key={f}
-              className={`filter-chip ${activeFilter === f ? 'active' : ''}`}
-              onClick={() => setActiveFilter(f)}
+              className={`filter-chip ${activeFilters.includes(f) ? 'active' : ''}`}
+              onClick={() => toggleFilter(f)}
+              title="Click to toggle -- multiple filters combine (OR)"
             >
               {f}
             </span>
