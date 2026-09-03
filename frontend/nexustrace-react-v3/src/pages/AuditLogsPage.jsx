@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fetchAuditLogs } from '../api/client';
+import { fetchAuditLogs, verifyAuditChain } from '../api/client';
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +28,20 @@ export default function AuditLogsPage({ currentUser }) {
   const [error, setError] = useState(null);
   const [forbidden, setForbidden] = useState(false);
   const [page, setPage] = useState(0);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    try {
+      const result = await verifyAuditChain();
+      setVerifyResult(result);
+    } catch (err) {
+      setVerifyResult({ valid: false, message: err.message || 'Verification request failed.' });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -83,20 +97,40 @@ export default function AuditLogsPage({ currentUser }) {
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{
-            background: 'var(--stamp-green-bg)',
-            border: '1px solid var(--stamp-green)',
-            color: 'var(--stamp-green)',
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '11px',
-            fontWeight: 700,
-            padding: '4px 10px',
-            borderRadius: '3px'
-          }}>
-            🛡️ AUDIT INTEGRITY: LIVE
-          </span>
+          <button
+            type="button"
+            onClick={handleVerify}
+            disabled={verifying}
+            className="tactical-btn"
+            style={{
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '6px 12px',
+              cursor: verifying ? 'default' : 'pointer'
+            }}
+          >
+            {verifying ? 'VERIFYING CHAIN…' : '🛡️ VERIFY CHAIN INTEGRITY'}
+          </button>
         </div>
       </div>
+
+      {verifyResult && (
+        <div style={{
+          margin: '0 0 16px',
+          padding: '10px 14px',
+          borderRadius: '3px',
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: '12px',
+          background: verifyResult.valid ? 'var(--stamp-green-bg)' : 'var(--stamp-red-bg)',
+          border: `1px solid ${verifyResult.valid ? 'var(--stamp-green)' : 'var(--stamp-red)'}`,
+          color: verifyResult.valid ? 'var(--stamp-green)' : 'var(--stamp-red)'
+        }}>
+          {verifyResult.valid
+            ? `✓ CHAIN VALID — all ${verifyResult.total_entries ?? 0} entries recomputed and matched. No tampering detected.`
+            : `⚠️ CHAIN INTEGRITY FAILURE — ${verifyResult.message || 'a stored hash did not match its recomputed value.'}${verifyResult.broken_at ? ` (first break at entry ${verifyResult.broken_at})` : ''}`}
+        </div>
+      )}
 
       {/* Security Overview Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>

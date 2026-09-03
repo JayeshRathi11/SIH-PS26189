@@ -26,6 +26,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # real URL as an env var, no rebuild required.
 RUN mkdir -p /etc/nginx/templates && printf 'server {\n\
     listen 80;\n\
+    client_max_body_size 50M;\n\
     location / {\n\
         root /usr/share/nginx/html;\n\
         index index.html index.htm;\n\

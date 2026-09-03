@@ -15,6 +15,7 @@ const QUICK_USERS = [
 ];
 
 export default function SignInPage({ onAuthenticated, theme, onToggleTheme }) {
+  const [showQuickAccess, setShowQuickAccess] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -114,23 +115,34 @@ export default function SignInPage({ onAuthenticated, theme, onToggleTheme }) {
         </form>
 
         <div className="login-gate__quick">
-          <p className="login-gate__quick-label mono">VERIFIED PERSONNEL &mdash; QUICK ACCESS</p>
-          <div className="login-gate__quick-list">
-            {QUICK_USERS.map((qu) => (
-              <button
-                key={qu.user}
-                type="button"
-                className="login-gate__quick-card mono"
-                onClick={() => handleQuickUser(qu)}
-              >
-                <span className="login-gate__quick-name">{qu.name}</span>
-                <span className="login-gate__quick-meta">
-                  <span className="login-gate__quick-badge">{qu.badge}</span>
-                  <span className="login-gate__quick-role">{qu.role}</span>
-                </span>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            className="login-gate__quick-label mono"
+            onClick={() => setShowQuickAccess((v) => !v)}
+            aria-expanded={showQuickAccess}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '6px', width: '100%', textAlign: 'left' }}
+          >
+            <span style={{ display: 'inline-block', transform: showQuickAccess ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>&#9656;</span>
+            VERIFIED PERSONNEL &mdash; QUICK ACCESS
+          </button>
+          {showQuickAccess && (
+            <div className="login-gate__quick-list">
+              {QUICK_USERS.map((qu) => (
+                <button
+                  key={qu.user}
+                  type="button"
+                  className="login-gate__quick-card mono"
+                  onClick={() => handleQuickUser(qu)}
+                >
+                  <span className="login-gate__quick-name">{qu.name}</span>
+                  <span className="login-gate__quick-meta">
+                    <span className="login-gate__quick-badge">{qu.badge}</span>
+                    <span className="login-gate__quick-role">{qu.role}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="login-gate__footer mono">

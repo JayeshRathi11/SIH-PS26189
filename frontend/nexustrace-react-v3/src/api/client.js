@@ -436,3 +436,15 @@ export async function fetchAuditLogs(skip = 0, limit = 50) {
   }
   return await response.json();
 }
+
+// Recomputes every audit_logs row's hash from its own stored fields plus
+// the previous row's hash and checks it against what's actually stored --
+// this is what proves the chain tamper-EVIDENT, not just tamper-resistant.
+// AUDITOR / OFFICER_IN_CHARGE only (backend-enforced).
+export async function verifyAuditChain() {
+  const response = await fetch('/api/audit/verify', { headers: getAuthHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to verify audit chain: ${response.status} ${response.statusText}`);
+  }
+  return await response.json();
+}
