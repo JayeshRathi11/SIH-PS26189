@@ -159,6 +159,34 @@ class GraphService:
         hubs = analytics.get_ranked_key_influencers(top_n=top_n)
         return hubs
 
+    def get_timeline_events(self, domain_filter: str = None, include_rejected: bool = False) -> List[Dict[str, Any]]:
+        """
+        Chronological feed of every recorded interaction for the Timeline page.
+        There is no separate "events" table -- every relationship record already
+        carries a timestamp, both parties' names, and the evidence behind it, so
+        the timeline is just that same data re-shaped and sorted by time.
+        """
+        relationships = self._load_relationships()
+        events = []
+        for r in relationships:
+            if not include_rejected and r.get("status") == "REJECTED":
+                continue
+            if domain_filter and r.get("domain") != domain_filter:
+                continue
+            events.append({
+                "event_type": r.get("relationship_type", "ASSOCIATE_OF"),
+                "source": r.get("source_canonical") or r.get("source_id", ""),
+                "target": r.get("target_canonical") or r.get("target_id", ""),
+                "evidence": r.get("evidence", ""),
+                "domain": r.get("domain", ""),
+                "timestamp": r.get("timestamp") or "",
+                "confidence": r.get("confidence", 0.9),
+                "verified_by_officer": r.get("verified_by_officer", False),
+            })
+
+        events.sort(key=lambda e: e["timestamp"] or "")
+        return events
+
     def explain_path(self, source_id: str, target_id: str, max_depth: int = 4) -> Dict[str, Any]:
         """
         Explainable AI (XAI) Pathfinding:

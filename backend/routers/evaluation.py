@@ -1,15 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from pipeline.config import DOMAINS
 from pipeline.evaluation.score_against_ground_truth import evaluate_domain
 from backend.models.schemas import EvaluationScoreResponse
 from backend.services.graph_service import GraphService
+from backend.routers.auth import get_current_user, User
 
 router = APIRouter(prefix="/evaluation", tags=["Evaluation Metrics"])
 graph_service = GraphService()
 
 @router.get("", response_model=List[EvaluationScoreResponse])
-def get_all_domain_evaluations():
+def get_all_domain_evaluations(current_user: User = Depends(get_current_user)):
     evals = []
     full_graph = graph_service.get_full_graph()
     entities = full_graph["nodes"]
@@ -32,7 +33,7 @@ def get_all_domain_evaluations():
     return evals
 
 @router.get("/{domain}", response_model=EvaluationScoreResponse)
-def get_domain_evaluation(domain: str):
+def get_domain_evaluation(domain: str, current_user: User = Depends(get_current_user)):
     full_graph = graph_service.get_full_graph(domain_filter=domain)
     d_entities = [{"canonical_name": e["canonical_name"]} for e in full_graph["nodes"]]
     d_edges = [

@@ -1,8 +1,9 @@
 import json
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 from pipeline.config import PROCESSED_DIR
 from backend.models.schemas import DocumentResponse
+from backend.routers.auth import get_current_user, User
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -18,7 +19,7 @@ def load_parsed_docs() -> List[dict]:
     return docs
 
 @router.get("", response_model=List[DocumentResponse])
-def list_documents(domain: Optional[str] = Query(None)):
+def list_documents(domain: Optional[str] = Query(None), current_user: User = Depends(get_current_user)):
     docs = load_parsed_docs()
     if domain:
         docs = [d for d in docs if domain in d.get("domain", "")]
@@ -34,7 +35,7 @@ def list_documents(domain: Optional[str] = Query(None)):
     ]
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
-def get_document_by_id(doc_id: str):
+def get_document_by_id(doc_id: str, current_user: User = Depends(get_current_user)):
     docs = load_parsed_docs()
     for d in docs:
         if d["doc_id"] == doc_id:

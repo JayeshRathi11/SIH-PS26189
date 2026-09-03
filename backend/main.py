@@ -13,7 +13,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db import init_db
-from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier, audit
+from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier, audit, cases
 
 app = FastAPI(
     title="NexusTrace API",
@@ -50,6 +50,7 @@ app.include_router(dossier.router)
 app.include_router(pipeline.router)
 app.include_router(evaluation.router)
 app.include_router(audit.router)
+app.include_router(cases.router)
 
 @app.get("/")
 def root():

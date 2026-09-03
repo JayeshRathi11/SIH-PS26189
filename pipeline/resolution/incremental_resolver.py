@@ -128,8 +128,47 @@ def ingest_new_case_incrementally(
             "evidence": r.get("evidence", "")
         })
 
-    # Recalculate network centrality metrics across merged graph
-    analytics = GraphAnalyticsEngine(list(entity_map.values()), resolved_relationships)
+    # Recalculate network centrality metrics across the FULL cumulative graph
+    # -- existing persisted relationships plus this batch's new ones -- not just
+    # this batch's edges. Using only resolved_relationships here was the root
+    # cause of every entity's centrality flattening toward a uniform ~0.6/N
+    # value after the first incremental ingestion: entity_map already contains
+    # every entity ever seen, but resolved_relationships only held this call's
+    # new edges, so most nodes looked isolated to the analytics engine and got
+    # overwritten with the isolated-node baseline score, clobbering whatever
+    # real, differentiated centrality they had from earlier ingestions.
+    existing_rel_records = db.query(RelationshipRecord).filter(RelationshipRecord.status == "ACTIVE").all()
+    full_relationships = [
+        {
+            "source_id": rec.source_id,
+            "source_canonical": rec.source_canonical,
+            "relationship_type": rec.relationship_type,
+            "raw_relationship_type": rec.raw_relationship_type,
+            "target_id": rec.target_id,
+            "target_canonical": rec.target_canonical,
+            "confidence": rec.confidence,
+            "domain": rec.domain,
+            "evidence": rec.evidence,
+            "timestamp": rec.timestamp,
+            "verified_by_officer": rec.verified_by_officer,
+            "weight_multiplier": rec.weight_multiplier,
+            "status": rec.status,
+        }
+        for rec in existing_rel_records
+    ]
+    # This batch's own edges take precedence over the persisted copy of the
+    # same edge (same id scheme upsert_resolved_graph() uses), so freshly
+    # merged confidence/evidence is reflected in this run's scoring too.
+    by_rel_id = {
+        f"REL_{r['source_id']}_{r['target_id']}_{r['relationship_type']}_{r['domain']}": r
+        for r in full_relationships
+    }
+    for r in resolved_relationships:
+        rel_id = f"REL_{r['source_id']}_{r['target_id']}_{r.get('relationship_type', 'ASSOCIATE_OF')}_{r.get('domain', 'general')}"
+        by_rel_id[rel_id] = r
+    full_relationships = list(by_rel_id.values())
+
+    analytics = GraphAnalyticsEngine(list(entity_map.values()), full_relationships)
     ranked_hubs = {h["entity_id"]: h for h in analytics.get_ranked_key_influencers(top_n=500)}
 
     for cid, meta in entity_map.items():

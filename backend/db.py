@@ -192,6 +192,68 @@ class RelationshipRecord(Base):
     weight_multiplier = Column(Float, default=1.0)
     status = Column(String, default="ACTIVE") # ACTIVE, REJECTED
 
+class CaseRecord(Base):
+    """
+    Persists the case list that used to live only in the React app's
+    local state (App.jsx's old INITIAL_CASES + a client-only
+    handleAddCase/handleArchiveCase/handleDeleteCase). Without this
+    table a case created via "+ Add New Case", or an archive/delete
+    done in the sidebar, vanished on refresh and was invisible to any
+    other officer's browser -- even though the underlying entities,
+    relationships and documents for that domain were already
+    persisted server-side. This table is purely a UI-facing case
+    registry; deleting a row here never touches EntityRecord/
+    RelationshipRecord data for its domain (see delete_case() in
+    backend/routers/cases.py) -- entity resolution can merge one
+    entity across multiple domains/cases, so purging by domain could
+    silently corrupt data shared with another case.
+    """
+    __tablename__ = "cases"
+
+    id = Column(String, primary_key=True) # e.g. 'case-1', or the raw domain key for an officer-created case
+    case_id = Column(String, nullable=True) # display code, e.g. 'FIR-01-NARCO'
+    title = Column(String, nullable=False)
+    entities_label = Column(String, nullable=True) # string, not int -- case-all's label is "10 Domains"
+    links_label = Column(String, nullable=True)
+    tag = Column(String, default="Active")
+    archived = Column(Boolean, default=False)
+    hidden = Column(Boolean, default=False) # soft-deleted from the sidebar
+    sort_order = Column(Integer, default=0)
+    created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Mirrors the old hardcoded INITIAL_CASES array from App.jsx, so a
+# fresh database seeds the exact same 10 domain cases + the unified
+# master view that used to be baked into the frontend.
+DEFAULT_CASES = [
+    {"id": "case-all", "case_id": "GLOBAL-MASTER-00", "title": "All Domains (Master View)", "entities_label": "10 Domains", "links_label": "Resolved Hub", "tag": "Global"},
+    {"id": "case-1", "case_id": "FIR-01-NARCO", "title": "01: Narcotics Trafficking", "entities_label": "20", "links_label": "18", "tag": "Active"},
+    {"id": "case-2", "case_id": "FIR-02-HUMAN", "title": "02: Human Trafficking", "entities_label": "5", "links_label": "4", "tag": "Active"},
+    {"id": "case-3", "case_id": "FIR-03-CYBER", "title": "03: Cyber Financial Fraud", "entities_label": "16", "links_label": "16", "tag": "Active"},
+    {"id": "case-4", "case_id": "FIR-04-ARMS", "title": "04: Arms Smuggling", "entities_label": "12", "links_label": "14", "tag": "Active"},
+    {"id": "case-5", "case_id": "FIR-05-EXTORT", "title": "05: Organized Extortion", "entities_label": "20", "links_label": "23", "tag": "Active"},
+    {"id": "case-6", "case_id": "FIR-06-KIDNAP", "title": "06: Kidnapping for Ransom", "entities_label": "16", "links_label": "15", "tag": "Active"},
+    {"id": "case-7", "case_id": "FIR-07-FAKE-CURR", "title": "07: Counterfeit Currency", "entities_label": "16", "links_label": "11", "tag": "Active"},
+    {"id": "case-8", "case_id": "FIR-08-HAWALA", "title": "08: Illegal Betting & Hawala", "entities_label": "16", "links_label": "10", "tag": "Active"},
+    {"id": "case-9", "case_id": "FIR-09-VEHICLE", "title": "09: Vehicle Theft Ring", "entities_label": "12", "links_label": "9", "tag": "Active"},
+    {"id": "case-10", "case_id": "FIR-10-LAND", "title": "10: Land Grabbing & Fraud", "entities_label": "16", "links_label": "11", "tag": "Active"},
+]
+
+def seed_default_cases(db):
+    """Pre-seeds the default 10 domain cases + the unified master view.
+    Only runs once -- if the table already has any rows (from a prior
+    seed, or officer-created cases), it is left alone."""
+    if db.query(CaseRecord).count() > 0:
+        return
+    for order, c in enumerate(DEFAULT_CASES):
+        db.add(CaseRecord(
+            id=c["id"], case_id=c["case_id"], title=c["title"],
+            entities_label=c["entities_label"], links_label=c["links_label"],
+            tag=c["tag"], sort_order=order,
+        ))
+    db.commit()
+
 def upsert_resolved_graph(db, resolved_entities: dict, resolved_triples: list):
     """
     Upserts resolved entity nodes and relationship edges into SQLite database.
@@ -316,6 +378,7 @@ def init_db():
     db = SessionLocal()
     try:
         seed_default_users(db)
+        seed_default_cases(db)
     finally:
         db.close()
 

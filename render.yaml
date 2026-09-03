@@ -1,0 +1,49 @@
+# Render Blueprint for NexusTrace.
+#
+# How to use (Render account + repo push are things only you can do --
+# see DEPLOYMENT.md / the chat reply for the full walkthrough):
+#   1. Commit and push this repo (including frontend/nexustrace-react-v3/,
+#      which is currently untracked -- see DEPLOYMENT.md).
+#   2. On dashboard.render.com: New > Blueprint > pick this repo/branch.
+#      Render reads this file and proposes both services below.
+#   3. For every env var marked "sync: false" here, paste the real value
+#      from your local .env into Render's dashboard -- Render never reads
+#      your .env file directly, and this file intentionally carries no
+#      secrets so it's safe to commit.
+#   4. After the backend deploys, copy ITS live onrender.com URL into the
+#      frontend service's BACKEND_URL var (Render shows a placeholder --
+#      update it once, and update CORS_ORIGINS on the backend the same way
+#      with the frontend's URL). Redeploy the frontend once after that edit.
+
+services:
+  - type: web
+    name: nexustrace-backend
+    runtime: docker
+    dockerfilePath: ./backend.Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # paste your Supabase connection string
+      - key: JWT_SECRET_KEY
+        sync: false   # paste your existing key (keeps existing logins/tokens valid)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://nexustrace-frontend.onrender.com"  # update after frontend's real URL is known
+      - key: DATA_DIR
+        value: ./data
+      - key: PROCESSED_DIR
+        value: ./data/processed
+
+  - type: web
+    name: nexustrace-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/nexustrace-react-v3/Dockerfile
+    dockerContext: ./frontend/nexustrace-react-v3
+    plan: free
+    envVars:
+      - key: BACKEND_URL
+        value: "https://nexustrace-backend.onrender.com"  # update once you see the backend's real onrender.com URL (no trailing slash)

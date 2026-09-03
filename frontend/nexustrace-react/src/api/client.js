@@ -116,6 +116,61 @@ export async function verifyAuditChain() {
 }
 
 // ----------------------------------------------------
+// Case Registry API -- persists the case list server-side (backed by
+// the `cases` table / backend/routers/cases.py) so a case created via
+// "+ Add New Case", and any archive/delete done in the sidebar, is
+// shared across officers and survives a page refresh instead of living
+// only in this tab's React state.
+// ----------------------------------------------------
+export async function fetchCases() {
+  const response = await fetch('/api/cases', { headers: getAuthHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch cases: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+export async function createCaseRecord(caseObj) {
+  const response = await fetch('/api/cases', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(caseObj)
+  });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const errBody = await response.json();
+      if (errBody?.detail) detail = errBody.detail;
+    } catch (_) { /* not JSON */ }
+    throw new Error(`Failed to save case: ${detail}`);
+  }
+  return await response.json();
+}
+
+export async function archiveCaseRecord(id, archived) {
+  const response = await fetch(`/api/cases/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ archived })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update case: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+export async function deleteCaseRecord(id) {
+  const response = await fetch(`/api/cases/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete case: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+// ----------------------------------------------------
 // Graph & Analytics API
 // ----------------------------------------------------
 export async function fetchCaseGraph(caseId, asOfDate = null, includeRejected = false) {

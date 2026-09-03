@@ -58,3 +58,8 @@ scripts/test_phase1_to_5.py
 .idea/
 .DS_Store
 Thumbs.db
+
+# DB dumps and project zip snapshots -- not source, shouldn't go to the shared repo
+db_backups/
+SIH-PS26189-project.zip
+SIH-PS26189-source.zip

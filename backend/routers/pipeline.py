@@ -12,7 +12,7 @@ from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
 from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf
 from backend.db import get_db, JobRecord, SessionLocal, User, UserRole
-from backend.routers.auth import require_role, log_audit
+from backend.routers.auth import require_role, get_current_user, log_audit
 from pipeline.run_pipeline import run_pipeline_end_to_end
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Execution"])
@@ -217,7 +217,7 @@ async def upload_case_document(
     )
 
 @router.get("/status/{job_id}", response_model=PipelineJobResponse)
-def get_job_status(job_id: str, db: Session = Depends(get_db)):
+def get_job_status(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     job = db.query(JobRecord).filter(JobRecord.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")

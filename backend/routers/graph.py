@@ -23,7 +23,8 @@ def get_graph(
     domain: Optional[str] = Query(None, description="Filter graph by domain ID or folder"),
     entity_type: Optional[str] = Query(None, description="Filter nodes by entity type"),
     as_of_date: Optional[str] = Query(None, description="Filter/decay graph interactions as of date (YYYY-MM-DD)"),
-    include_rejected: bool = Query(False, description="Include edges rejected by investigator feedback")
+    include_rejected: bool = Query(False, description="Include edges rejected by investigator feedback"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Fetches knowledge graph nodes and edges.
@@ -41,18 +42,32 @@ def get_graph(
 def get_centrality_rankings(
     domain: Optional[str] = Query(None),
     top_n: int = Query(10, ge=1, le=100),
-    as_of_date: Optional[str] = Query(None, description="Compute centrality as of date (YYYY-MM-DD)")
+    as_of_date: Optional[str] = Query(None, description="Compute centrality as of date (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns key syndicate influencer hubs ranked by combined PageRank & Betweenness Centrality.
     """
     return service.get_key_influencers(domain_filter=domain, top_n=top_n, as_of_date=as_of_date)
 
+@router.get("/timeline")
+def get_timeline_events(
+    domain: Optional[str] = Query(None, description="Filter events by domain ID or folder"),
+    include_rejected: bool = Query(False, description="Include events rejected by investigator feedback"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Chronological feed of recorded interactions for the Timeline page,
+    built from the same relationship records the graph and Pathfinder draw on.
+    """
+    return service.get_timeline_events(domain_filter=domain, include_rejected=include_rejected)
+
 @router.get("/explain", response_model=PathExplanationResponse)
 def explain_shortest_path(
     source_id: str = Query(..., description="Canonical ID or name of source entity"),
     target_id: str = Query(..., description="Canonical ID or name of target entity"),
-    max_depth: int = Query(4, ge=1, le=8, description="Maximum search hops")
+    max_depth: int = Query(4, ge=1, le=8, description="Maximum search hops"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Explainable AI (XAI) Pathfinding:

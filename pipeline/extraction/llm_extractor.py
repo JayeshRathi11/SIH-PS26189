@@ -68,6 +68,13 @@ class LLMExtractor:
             try:
                 res = self._call_gemini_api(doc_text)
             except Exception as e:
+                # Previously silent -- a Gemini auth/quota/network/JSON-parse
+                # failure looked identical to "the document had nothing to
+                # extract" from the caller's point of view, with zero trace
+                # in the terminal. Print it so a real API failure is visible
+                # instead of being indistinguishable from a genuine empty
+                # extraction.
+                print(f"[LLMExtractor] Gemini call failed for doc_id={doc_id}: {type(e).__name__}: {e}")
                 res = None
 
         # 2. Try Groq API if key is present and Gemini didn't return
@@ -75,11 +82,20 @@ class LLMExtractor:
             try:
                 res = self._call_groq_api(doc_text)
             except Exception as e:
+                print(f"[LLMExtractor] Groq call failed for doc_id={doc_id}: {type(e).__name__}: {e}")
                 res = None
 
         # 3. Fallback to rule-based NLP extractor
         if not res or not isinstance(res, dict) or "entities" not in res:
+            print(f"[LLMExtractor] No usable LLM result for doc_id={doc_id} -- using deterministic fallback extractor.")
             res = self._deterministic_fallback_extract(doc_text)
+        elif not res.get("entities") and len(doc_text.strip()) > 200:
+            # A "successful" API call that nonetheless extracted nothing from
+            # a non-trivial document doesn't raise -- it looks identical to a
+            # short/blank document to the rest of the pipeline. Flag it.
+            print(f"[LLMExtractor] WARNING: doc_id={doc_id} extracted 0 entities from {len(doc_text)} chars of text. "
+                  f"This was NOT the deterministic fallback (that path is logged separately above) -- "
+                  f"the LLM call itself returned an empty result. Consider re-uploading this document.")
 
         # Cache valid result
         with self.lock:
@@ -95,7 +111,7 @@ class LLMExtractor:
         prompt = f"{SYSTEM_EXTRACTION_PROMPT}\n\nDocument Text to Analyze:\n{doc_text}"
         
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=prompt
         )
         raw_response = response.text
@@ -130,11 +146,57 @@ class LLMExtractor:
 
     def _deterministic_fallback_extract(self, doc_text: str) -> Dict[str, Any]:
         """
-        Rule-based NLP fallback extractor using regex patterns.
+        Rule-based NLP fallback extractor using generic structural regex
+        heuristics (capitalization patterns, honorific prefixes, alias/nickname
+        phrasing, organization-suffix keywords) rather than a hardcoded list of
+        specific names.
+        NOTE: this used to hardcode the exact person/org/alias names from one
+        demo dataset, which meant it silently found nothing on any other
+        dataset the moment Gemini/Groq were unavailable or rate-limited --
+        looking identical to "the document had nothing in it". This version
+        degrades gracefully on arbitrary documents instead.
         """
         entities = []
         relationships = []
         entity_names = set()
+        person_names = []  # preserves discovery order, used for alias attribution
+
+        # Generic non-person words: if a Title-Case phrase contains one of
+        # these tokens it's almost always an institution, location, or
+        # vehicle model rather than a person's name.
+        NON_PERSON_WORDS = {
+            "police", "station", "court", "bank", "road", "area", "building",
+            "force", "department", "ministry", "cell", "office", "marg",
+            "nagar", "chowk", "district", "state", "village", "colony",
+            "circle", "zone", "branch", "highway", "sector", "block", "camp",
+            "cantonment", "city", "town", "county", "province", "region",
+            "headquarters", "wing", "division", "unit", "squad", "bureau",
+            "authority", "agency", "committee", "board", "council",
+            "commission", "service", "services", "limited", "ltd", "pvt",
+            "llp", "enterprises", "constructions", "construction",
+            "developers", "traders", "corporation", "company", "finance",
+            "foundation", "trust", "consultancy", "ventures", "industries",
+            "group", "associates", "solutions", "fir", "gst", "national",
+            "republic", "government", "central", "federal",
+            # common vehicle brands/models -- FIRs mention these constantly
+            # and they false-positive as 2-word "person" names otherwise
+            "maruti", "ertiga", "toyota", "innova", "honda", "hyundai",
+            "creta", "verna", "tata", "nexon", "safari", "mahindra",
+            "scorpio", "bolero", "xuv", "thar", "suzuki", "swift", "dzire",
+            "baleno", "alto", "wagon", "ford", "figo", "renault", "duster",
+            "kia", "seltos", "skoda", "volkswagen", "polo", "etios",
+            "celerio", "santro", "fortuner", "tempo", "traveller", "omni",
+            "eeco", "forex", "remittance",
+        }
+        ORG_SUFFIXES = [
+            "Services", "Ltd", "Limited", "LLP", "Enterprises",
+            "Constructions", "Construction", "Developers", "Traders",
+            "Agency", "Agencies", "Corporation", "Company", "Bank",
+            "Finance", "Foundation", "Trust", "Stores", "Consultancy",
+            "Ventures", "Industries", "Group", "Associates", "Solutions",
+            "Pvt", "Forex",
+        ]
+        HONORIFICS = r"(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Shri|Smt|Inspector|SI|ASI|SHO|DySP|SP|Constable)"
 
         # 1. Phone numbers
         phone_matches = re.findall(r"\+?\d{2,4}[-\s]?\d{5}[-\s]?\d{5}|\+?\d{10,12}", doc_text)
@@ -152,41 +214,75 @@ class LLMExtractor:
                 entity_names.add(clean_v)
                 entities.append({"name": clean_v, "type": EntityType.VEHICLE.value, "aliases": []})
 
-        # 3. Known Crime Network Hub Aliases
-        hub_aliases = [
-            "Sethji", "Bhai", "the contact", "the director", "the financier", 
-            "the negotiator", "the source contact", "the controller", "the buyer", 
-            "the fixer", "Iqbal Ansari", "I.A.", "the account holder", "the beneficial owner"
+        # 3. Honorific-prefixed names (highest-confidence person matches --
+        #    "Inspector Rao", "Shri Devraj Oberoi", etc.)
+        for m in re.finditer(rf"\b{HONORIFICS}\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){{0,2}})", doc_text):
+            name = m.group(1).strip()
+            if name not in entity_names:
+                entity_names.add(name)
+                entities.append({"name": name, "type": EntityType.PERSON.value, "aliases": []})
+                person_names.append(name)
+
+        # 4. Generic Title-Case name candidates -- two or three consecutively
+        #    capitalized words (e.g. "Devraj Oberoi", "Priyanka Solanki"),
+        #    filtered against NON_PERSON_WORDS to drop institution/vehicle
+        #    phrases like "Mundka Police Station" or "Maruti Ertiga".
+        for m in re.finditer(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b", doc_text):
+            candidate = m.group(1).strip()
+            words = candidate.split()
+            lower_words = {w.lower().strip(".,") for w in words}
+            if lower_words & NON_PERSON_WORDS:
+                continue
+            if candidate in entity_names:
+                continue
+            if any(ch.isdigit() for ch in candidate):
+                continue
+            entity_names.add(candidate)
+            entities.append({"name": candidate, "type": EntityType.PERSON.value, "aliases": []})
+            person_names.append(candidate)
+
+        # 5. Alias / nickname phrasing ("known as 'DJ'", "alias Bhau", "also
+        #    known as ...") -- attached to whichever extracted person name
+        #    appears closest before the match, since that's overwhelmingly
+        #    who the alias phrase refers to in FIR/surveillance-note prose.
+        alias_patterns = [
+            r'known\s+(?:among[^,]*?\s+)?as\s+["‘“]([A-Za-z0-9]{1,20})[,\.]?["’”]',
+            r'\balias\s+["‘“]?([A-Za-z0-9]{1,20})[,\.]?["’”]?',
+            r'also\s+known\s+as\s+["‘“]?([A-Za-z0-9]{1,20})[,\.]?["’”]?',
         ]
-        for ha in hub_aliases:
-            if re.search(rf"\b{re.escape(ha)}\b", doc_text, re.IGNORECASE):
-                if ha not in entity_names:
-                    entity_names.add(ha)
-                    entities.append({"name": ha, "type": EntityType.PERSON.value, "aliases": [ha]})
+        for pat in alias_patterns:
+            for m in re.finditer(pat, doc_text, re.IGNORECASE):
+                alias = m.group(1).strip()
+                preceding_text = doc_text[:m.start()]
+                best_person, best_pos = None, -1
+                for p in person_names:
+                    pos = preceding_text.rfind(p)
+                    if pos > best_pos:
+                        best_pos, best_person = pos, p
+                if best_person:
+                    for e in entities:
+                        if e["name"] == best_person and alias not in e["aliases"]:
+                            e["aliases"].append(alias)
 
-        # 4. Operatives and Person Names
-        person_matches = re.findall(
-            r"\b(?:Devendra Solanki|Bunty|Iliyas Khan|Manoj Tiwari|Rina Das|Rohit Chaurasia|Farhan Qureshi|Ashraf Mallick|Nilesh Kadam|Harjeet Singh|Waseem Akhtar|Rakesh Pawar|Salim Sheikh|Sunil Yadav|Ajay Bhonsle|Naseer Ahmed|Vikas Chopra|Deepak Malhotra|Rizwan Ali|Anil Kamble|Ramesh Naidu|Prakash Jadhav|Rajendra Kulkarni)\b",
-            doc_text, re.IGNORECASE
-        )
-        for p in person_matches:
-            clean_p = p.strip()
-            if clean_p not in entity_names:
-                entity_names.add(clean_p)
-                entities.append({"name": clean_p, "type": EntityType.PERSON.value, "aliases": []})
+        # 6. Organizations -- a capitalized phrase (1-4 leading words) ending
+        #    in a recognizable organization-suffix keyword, e.g.
+        #    "Bhosale Agro Traders", "N. Contractor Forex", "Konkan Sahakari
+        #    Bank". Generic by construction: any org whose name ends in one
+        #    of these common business/institution words is caught, not just
+        #    names seen before.
+        org_pattern = r"\b((?:[A-Z][a-zA-Z&\.]*\s+){1,4}(?:" + "|".join(
+            sorted(ORG_SUFFIXES, key=len, reverse=True)
+        ) + r"))\b"
+        for m in re.finditer(org_pattern, doc_text):
+            org = re.sub(r"\s+", " ", m.group(1).strip())
+            if len(org.split()) < 2:
+                continue
+            if org.lower() in {e.lower() for e in entity_names}:
+                continue
+            entity_names.add(org)
+            entities.append({"name": org, "type": EntityType.ORGANIZATION.value, "aliases": []})
 
-        # 5. Organizations & Fronts
-        org_matches = re.findall(
-            r"\b(?:Sunrise Placement Services|IA Digital Ventures Pvt Ltd|Chopra Fuel & Service Station|Shreeji Construction & Developers|Shreeji Constructions)\b",
-            doc_text, re.IGNORECASE
-        )
-        for o in org_matches:
-            clean_o = o.strip()
-            if clean_o not in entity_names:
-                entity_names.add(clean_o)
-                entities.append({"name": clean_o, "type": EntityType.ORGANIZATION.value, "aliases": []})
-
-        # 6. Bank accounts
+        # 7. Bank accounts
         acct_matches = re.findall(r"\b(?:account ending\s+\d{4}|A/C\s+\d{4,16})\b", doc_text, re.IGNORECASE)
         for a in acct_matches:
             clean_a = a.strip()
@@ -194,13 +290,15 @@ class LLMExtractor:
                 entity_names.add(clean_a)
                 entities.append({"name": clean_a, "type": EntityType.FINANCIAL_ACCOUNT.value, "aliases": []})
 
-        # 7. Extract relationship triples when entities co-occur
+        # 8. Extract relationship triples when entities co-occur near a
+        #    connecting verb -- unchanged from before, this logic was always
+        #    generic (it just walks whatever entities were found above).
         ent_list = [e["name"] for e in entities]
         for i in range(len(ent_list)):
             for j in range(i + 1, len(ent_list)):
                 e1 = ent_list[i]
                 e2 = ent_list[j]
-                
+
                 pattern = rf"{re.escape(e1)}[\s\S]{{1,200}}?(called|contacted|instructed|directed|met|transferred|handed off|paid|associated|recruited|forged|registered|monitored)[\s\S]{{1,200}}?{re.escape(e2)}"
                 m = re.search(pattern, doc_text, re.IGNORECASE)
                 if not m:
@@ -219,8 +317,10 @@ class LLMExtractor:
                     elif "met" in verb:
                         rel_type = "CO_LOCATED_WITH"
                     elif "direct" in verb or "instruct" in verb:
-                        rel_type = "LEADS_ORGANIZATION" if any(o in e2 for o in ["Ltd", "Services", "Station", "Developers"]) else "ASSOCIATE_OF"
-                    
+                        rel_type = "LEADS_ORGANIZATION" if any(
+                            sfx in e2 for sfx in ORG_SUFFIXES
+                        ) else "ASSOCIATE_OF"
+
                     e1_type = next((e["type"] for e in entities if e["name"] == e1), "PERSON")
                     e2_type = next((e["type"] for e in entities if e["name"] == e2), "PERSON")
 
@@ -230,7 +330,7 @@ class LLMExtractor:
                         "relationship_type": rel_type,
                         "target": e2,
                         "target_type": e2_type,
-                        "confidence": 0.92,
+                        "confidence": 0.75,
                         "evidence": m.group(0)[:160].strip()
                     })
 

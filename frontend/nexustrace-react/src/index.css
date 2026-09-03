@@ -277,7 +277,8 @@ header{
   display:flex; align-items:center; gap:7px; padding:6px 12px; border:1px dashed var(--border); border-radius:3px;
 }
 
-.canvas{ position:relative; width:100%; flex:1; min-height:560px; padding:20px; overflow:auto; }
+.canvas{ position:relative; width:100%; flex:1; min-height:560px; padding:20px; overflow:auto; cursor:grab; }
+.canvas.panning{ cursor:grabbing; }
 svg.threads{ position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; }
 .thread{ stroke:var(--stamp-red); stroke-width:1.6; opacity:0.5; fill:none; stroke-linecap:round; }
 .thread.strong{ opacity:0.75; stroke-width:2; filter:drop-shadow(0 1px 1px rgba(155,44,44,0.25)); }

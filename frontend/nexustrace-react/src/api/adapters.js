@@ -29,59 +29,132 @@ export function adaptGraphResponse(graphData) {
     return map[type] || 'Entity';
   };
 
-  // Cluster-aware layout: group entities by their computed community
-  // cluster (from the analytics pipeline) into visually separated "bays"
-  // instead of dumping every node into one undifferentiated grid in raw
-  // backend order. This is what actually declutters a 100+ node unified
-  // graph -- structurally related entities land near each other, and
-  // unrelated clusters read as distinct islands on the corkboard. A view
-  // with no real cluster signal (everyone at cluster 0) degrades cleanly
-  // to a single compact grid, same as before.
-  const clusterMap = new Map();
-  nodes.forEach((node, index) => {
-    const cid = node.community_cluster ?? 0;
-    if (!clusterMap.has(cid)) clusterMap.set(cid, []);
-    clusterMap.get(cid).push(index);
-  });
-  // Largest cluster first: the core syndicate structure anchors the
-  // top-left of the board, looser/singleton entities trail off after it.
-  const clusters = Array.from(clusterMap.values()).sort((a, b) => b.length - a.length);
-
-  const NODE_SPACING_X = 250;
-  const NODE_SPACING_Y = 200;
-  const CLUSTER_GAP_X = 110;
-  const CLUSTER_GAP_Y = 140;
-  const BAYS_PER_ROW = Math.max(1, Math.ceil(Math.sqrt(clusters.length)));
+  // Kingpin-centered radial layout: the entity with the highest computed
+  // hub_score anchors the exact mathematical center of the board, and
+  // every other entity sits in a ring whose radius is its graph distance
+  // (BFS hop count) from that kingpin -- so relationships visibly radiate
+  // outward from the most central figure, instead of the previous flat
+  // cluster-grid, which grouped by community but had no sense of
+  // "distance from the kingpin" at all. Nodes unreachable from the
+  // kingpin (a separate, disconnected component) land in one further-out
+  // ring together, so they stay visible but read as structurally
+  // peripheral. Community cluster is still used as a tie-break for where
+  // a node sits along its ring's arc, so entities from the same community
+  // still land near each other.
+  const CENTER_X = 1400;
+  const CENTER_Y = 1000;
+  const BASE_RADIUS = 260;
+  const RING_GAP = 230;
+  const ARC_UNIT = 190; // approx on-screen spacing needed per node sharing a ring
 
   const positions = new Array(nodes.length);
-  let bayX = 80;
-  let bayY = 80;
-  let rowMaxHeight = 0;
 
-  clusters.forEach((memberIndices, clusterIdx) => {
-    const bayCols = Math.max(1, Math.ceil(Math.sqrt(memberIndices.length)));
-    const bayWidth = bayCols * NODE_SPACING_X;
-    const bayRows = Math.ceil(memberIndices.length / bayCols);
-    const bayHeight = bayRows * NODE_SPACING_Y;
-
-    memberIndices.forEach((nodeIndex, i) => {
-      const col = i % bayCols;
-      const row = Math.floor(i / bayCols);
-      positions[nodeIndex] = {
-        x: bayX + col * NODE_SPACING_X,
-        y: bayY + row * NODE_SPACING_Y,
-      };
+  if (nodes.length === 1) {
+    positions[0] = { x: CENTER_X, y: CENTER_Y };
+  } else if (nodes.length > 1) {
+    // Undirected adjacency from the edge list -- board relationships
+    // don't have a meaningful direction for layout purposes.
+    const idToIndex = new Map(nodes.map((n, i) => [n.id, i]));
+    const adjacency = nodes.map(() => []);
+    edges.forEach((edge) => {
+      const a = idToIndex.get(edge.source_id);
+      const b = idToIndex.get(edge.target_id);
+      if (a === undefined || b === undefined || a === b) return;
+      adjacency[a].push(b);
+      adjacency[b].push(a);
     });
 
-    rowMaxHeight = Math.max(rowMaxHeight, bayHeight);
-    if ((clusterIdx + 1) % BAYS_PER_ROW === 0) {
-      bayX = 80;
-      bayY += rowMaxHeight + CLUSTER_GAP_Y;
-      rowMaxHeight = 0;
-    } else {
-      bayX += bayWidth + CLUSTER_GAP_X;
+    // Kingpin = highest hub_score, ties broken by degree then by
+    // original order, so the pick is stable across re-renders of the
+    // same graph.
+    let kingpinIndex = 0;
+    nodes.forEach((node, i) => {
+      const score = node.hub_score ?? 0;
+      const bestScore = nodes[kingpinIndex].hub_score ?? 0;
+      if (
+        score > bestScore ||
+        (score === bestScore && adjacency[i].length > adjacency[kingpinIndex].length)
+      ) {
+        kingpinIndex = i;
+      }
+    });
+
+    // BFS ring (hop distance) from the kingpin.
+    const ring = new Array(nodes.length).fill(-1);
+    ring[kingpinIndex] = 0;
+    const queue = [kingpinIndex];
+    let maxRing = 0;
+    while (queue.length > 0) {
+      const current = queue.shift();
+      adjacency[current].forEach((next) => {
+        if (ring[next] === -1) {
+          ring[next] = ring[current] + 1;
+          maxRing = Math.max(maxRing, ring[next]);
+          queue.push(next);
+        }
+      });
     }
-  });
+    // Anything BFS never reached (a disconnected component) goes one
+    // ring further out than anything found, grouped together.
+    const outerRing = maxRing + 1;
+    nodes.forEach((_, i) => {
+      if (ring[i] === -1) ring[i] = outerRing;
+    });
+
+    const ringGroups = new Map();
+    nodes.forEach((node, i) => {
+      const r = ring[i];
+      if (!ringGroups.has(r)) ringGroups.set(r, []);
+      ringGroups.get(r).push(i);
+    });
+    ringGroups.forEach((indices) => {
+      indices.sort((a, b) => {
+        const ca = nodes[a].community_cluster ?? 0;
+        const cb = nodes[b].community_cluster ?? 0;
+        if (ca !== cb) return ca - cb;
+        return (nodes[b].hub_score ?? 0) - (nodes[a].hub_score ?? 0);
+      });
+    });
+
+    const sortedRings = Array.from(ringGroups.keys()).sort((a, b) => a - b);
+    positions[kingpinIndex] = { x: CENTER_X, y: CENTER_Y };
+
+    let prevRadius = 0;
+    sortedRings.forEach((r, ringOrder) => {
+      if (r === 0) return; // kingpin already placed at dead center
+      const indices = ringGroups.get(r);
+      const count = indices.length;
+      const radiusFromCircumference = (count * ARC_UNIT) / (2 * Math.PI);
+      const radius = Math.max(
+        BASE_RADIUS + (ringOrder - 1) * RING_GAP,
+        prevRadius + RING_GAP,
+        radiusFromCircumference
+      );
+      prevRadius = radius;
+
+      // Slight per-ring rotation so successive rings don't line up into
+      // dull straight spokes.
+      const angleOffset = ringOrder * 0.35;
+      indices.forEach((nodeIndex, i) => {
+        const angle = angleOffset + (2 * Math.PI * i) / count;
+        positions[nodeIndex] = {
+          x: CENTER_X + radius * Math.cos(angle),
+          y: CENTER_Y + radius * Math.sin(angle),
+        };
+      });
+    });
+
+    // Shift everything so the top/left-most pin sits at the same (80, 80)
+    // padding origin the old layout used, keeping every coordinate positive.
+    const minX = Math.min(...positions.map((p) => p.x));
+    const minY = Math.min(...positions.map((p) => p.y));
+    const shiftX = 80 - minX;
+    const shiftY = 80 - minY;
+    positions.forEach((p) => {
+      p.x += shiftX;
+      p.y += shiftY;
+    });
+  }
 
   // Calculate connection counts
   const connectionCounts = {};

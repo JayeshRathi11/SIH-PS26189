@@ -133,6 +133,6 @@ def submit_feedback(
     )
 
 @router.get("/feedback")
-def list_feedback(limit: int = 50, db: Session = Depends(get_db)):
+def list_feedback(limit: int = 50, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Lists recent investigator verification feedback."""
     return db.query(InvestigatorFeedback).order_by(InvestigatorFeedback.timestamp.desc()).limit(limit).all()

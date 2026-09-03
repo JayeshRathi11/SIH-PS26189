@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import PinNode from './PinNode';
 
 const NODE_WIDTH = 128;
@@ -51,10 +51,124 @@ export default function Board({
     return new Set(matching.map((e) => e.id));
   }, [entities, activeFilter, maxCentrality]);
 
+  // Click-and-drag canvas panning (Figma/whiteboard-style), additive to
+  // the existing scrollbar-based scrolling -- both work at once since
+  // panning just moves canvasRef's scrollLeft/scrollTop directly. Only
+  // starts on the empty canvas background: PinNode already calls
+  // e.stopPropagation() on its own pointerdown, so a drag started on a
+  // pin never reaches these handlers and node-dragging is unaffected.
+  const canvasRef = useRef(null);
+  const panRef = useRef({ dragging: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
+
+  const handleCanvasPointerDown = (e) => {
+    if (e.button !== 0) return; // left mouse / primary touch only
+    const el = canvasRef.current;
+    if (!el) return;
+    panRef.current = {
+      dragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+    };
+    el.classList.add('panning');
+  };
+
+  const handleCanvasPointerMove = (e) => {
+    if (!panRef.current.dragging) return;
+    const el = canvasRef.current;
+    if (!el) return;
+    el.scrollLeft = panRef.current.scrollLeft - (e.clientX - panRef.current.startX);
+    el.scrollTop = panRef.current.scrollTop - (e.clientY - panRef.current.startY);
+  };
+
+  const handleCanvasPointerUp = () => {
+    panRef.current.dragging = false;
+    canvasRef.current?.classList.remove('panning');
+  };
+
+  // Auto-center the view on the kingpin (the entity adaptGraphResponse
+  // already anchors at the mathematical center of the radial layout)
+  // once per fresh graph load, so an investigator lands on the most
+  // central figure first instead of whatever pin happens to sit at the
+  // scrolled-to-origin. Keyed on the case/temporal-date signature, not
+  // on `entities` alone, so dragging a pin (which also changes the
+  // `entities` reference) never yanks the view back to center.
+  const lastCenteredRef = useRef(null);
+
+  useEffect(() => {
+    if (!entities.length) return;
+    const signature = `${activeCase?.id || 'none'}|${temporalDate || 'current'}`;
+    if (lastCenteredRef.current === signature) return;
+    lastCenteredRef.current = signature;
+
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const kingpin = entities.reduce(
+      (best, e) => ((e.centrality || 0) > (best?.centrality || 0) ? e : best),
+      null
+    );
+    if (!kingpin) return;
+
+    // Defer to the next frame so the just-rendered pins have real
+    // clientWidth/clientHeight to scroll against.
+    requestAnimationFrame(() => {
+      el.scrollLeft = Math.max(0, kingpin.x + NODE_WIDTH / 2 - el.clientWidth / 2);
+      el.scrollTop = Math.max(0, kingpin.y - el.clientHeight / 2);
+    });
+  }, [entities, activeCase, temporalDate]);
+
+  // Scroll-wheel zoom. Mouse-wheel now zooms the corkboard in/out instead
+  // of scrolling it -- panning (drag empty canvas) and the native
+  // scrollbars already cover repositioning, so the wheel is free to be
+  // repurposed the way whiteboard/Figma-style tools do it. Uses the CSS
+  // `zoom` property (not `transform: scale`) so native scrolling and the
+  // existing pan math keep working without extra coordinate math.
+  const ZOOM_MIN = 0.4;
+  const ZOOM_MAX = 2;
+  const [zoomLevel, setZoomLevel] = useState(1);
+
+  const handleCanvasWheel = (e) => {
+    e.preventDefault();
+    setZoomLevel((z) => {
+      const factor = 1 - e.deltaY * 0.001;
+      const next = z * factor;
+      return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+    });
+  };
+
+  const handleZoomReset = () => setZoomLevel(1);
+  const handleZoomStep = (delta) => {
+    setZoomLevel((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z + delta)));
+  };
+
+  // Fullscreen mode for just the board (corkboard + its header/legend),
+  // not the whole app -- hides the sidebar and detail panel entirely via
+  // the native Fullscreen API so the board gets the whole screen.
+  const boardRootRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === boardRootRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (boardRootRef.current?.requestFullscreen) {
+      boardRootRef.current.requestFullscreen();
+    }
+  };
+
   const paths = useMemo(() => {
     const map = Object.fromEntries(entities.map((e) => [e.id, e]));
     return threads
-      .map(([a, b, confidence, type, domain, verified, status]) => {
+      .map(([a, b, confidence, type, domain, verified, status], index) => {
         const ea = map[a];
         const eb = map[b];
         if (!ea || !eb) return null;
@@ -66,7 +180,18 @@ export default function Board({
         const isPatternEdge = focusedPattern ? (highlightedNodeIds.has(a) && highlightedNodeIds.has(b)) : false;
 
         return {
-          key: `${a}-${b}`,
+          // Unique per edge, not just per node pair: the same two
+          // entities can have multiple relationship rows between them
+          // (different relationship_type/domain -- e.g. both CALLED and
+          // ASSOCIATE_OF, or the same pair linked across two case
+          // domains). Keying on `${a}-${b}` alone collided React keys
+          // for every such pair, and React silently failed to update
+          // the DOM `d` attribute for the shadowed duplicate -- that's
+          // what looked like "some threads don't move when dragged":
+          // the underlying data was fine, only the stale <path> wasn't
+          // being re-rendered. Including the array index guarantees
+          // uniqueness regardless of how many edges share an endpoint.
+          key: `${a}-${b}-${index}`,
           d: `M ${x1} ${y1} L ${x2} ${y2}`,
           confidence,
           isPatternEdge,
@@ -78,7 +203,11 @@ export default function Board({
   }, [entities, threads, focusedPattern, highlightedNodeIds]);
 
   return (
-    <main className="board" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <main
+      ref={boardRootRef}
+      className="board"
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--paper)' }}
+    >
       {/* Header bar */}
       <div className="board-header">
         <div className="titles">
@@ -88,8 +217,19 @@ export default function Board({
             {filterMatchIds && ` · FILTER: ${activeFilter.toUpperCase()} (${filterMatchIds.size} MATCHED)`}
           </div>
         </div>
-        <div className="board-hint">
-          📌 Drag pin to organize · Click for XAI & Court Brief
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="board-hint">
+            📌 Drag pin to organize · Drag empty canvas to pan · Scroll to zoom · Click for XAI & Court Brief
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleToggleFullscreen}
+            style={{ fontSize: '0.7rem', padding: '3px 9px' }}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen the board'}
+          >
+            {isFullscreen ? '⤤ Exit Fullscreen' : '⛶ Fullscreen'}
+          </button>
         </div>
       </div>
 
@@ -178,7 +318,16 @@ export default function Board({
       )}
 
       {/* Canvas */}
-      <div className="canvas" style={{ flex: 1, position: 'relative', overflow: 'auto' }}>
+      <div
+        ref={canvasRef}
+        className="canvas"
+        style={{ flex: 1, position: 'relative', overflow: 'auto', zoom: zoomLevel }}
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={handleCanvasPointerUp}
+        onPointerLeave={handleCanvasPointerUp}
+        onWheel={handleCanvasWheel}
+      >
         <svg className="threads" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
           {paths.map((p) => {
             let strokeColor = undefined;
@@ -228,6 +377,34 @@ export default function Board({
             />
           );
         })}
+      </div>
+
+      {/* Zoom readout + controls, floating over the canvas's top-right
+          corner. Rendered as a sibling positioned over the canvas (not a
+          child of it) so it stays fixed on screen instead of scrolling
+          or zooming away with the board content. */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: 76,
+          zIndex: 30,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          borderRadius: '4px',
+          padding: '4px 6px',
+          boxShadow: '2px 4px 8px rgba(33,29,22,0.16)',
+          fontSize: '0.7rem',
+        }}
+      >
+        <button type="button" className="btn btn-ghost" onClick={() => handleZoomStep(-0.15)} style={{ padding: '2px 8px' }} title="Zoom out">−</button>
+        <button type="button" className="btn btn-ghost" onClick={handleZoomReset} style={{ padding: '2px 8px', minWidth: '46px' }} title="Reset zoom">
+          {Math.round(zoomLevel * 100)}%
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => handleZoomStep(0.15)} style={{ padding: '2px 8px' }} title="Zoom in">+</button>
       </div>
 
       {/* Interactive Temporal Evolution Slider Dock */}

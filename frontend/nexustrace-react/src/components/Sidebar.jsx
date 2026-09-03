@@ -3,7 +3,7 @@ import CaseFolder from './CaseFolder';
 import EvaluationPanel from './EvaluationPanel';
 import { runPipeline, uploadCaseDocument } from '../api/client';
 
-export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCases, onAddCase, isOpen, activeFilter, onFilterChange }) {
+export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCases, onAddCase, onArchiveCase, onDeleteCase, isOpen, activeFilter, onFilterChange }) {
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCaseId, setNewCaseId] = useState('');
@@ -11,10 +11,14 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
   const [newCaseFiles, setNewCaseFiles] = useState([]);
   const fileInputRef = useRef(null);
 
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = cases.filter((c) => c.archived).length;
+
   const filteredCases = cases.filter(
     (c) =>
-      c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.caseId.toLowerCase().includes(search.toLowerCase())
+      (showArchived || !c.archived) &&
+      (c.title.toLowerCase().includes(search.toLowerCase()) ||
+        c.caseId.toLowerCase().includes(search.toLowerCase()))
   );
 
   const [pollingStatus, setPollingStatus] = useState('');
@@ -193,6 +197,15 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
         </button>
       </h2>
       {pollingStatus && <div style={{ padding: '0 16px 12px', fontSize: '0.8rem', color: 'var(--tag-amber)' }}>{pollingStatus}</div>}
+      {archivedCount > 0 && (
+        <button
+          className="btn btn-ghost"
+          onClick={() => setShowArchived((s) => !s)}
+          style={{ margin: '0 16px 8px', fontSize: '0.7rem', padding: '3px 8px', alignSelf: 'flex-start' }}
+        >
+          {showArchived ? 'Hide' : 'Show'} Archived ({archivedCount})
+        </button>
+      )}
       {filteredCases.map((c) => {
         const originalIndex = cases.findIndex((x) => x.id === c.id);
         return (
@@ -203,6 +216,8 @@ export default function Sidebar({ cases, activeCaseId, onSelectCase, onReorderCa
             isActive={c.id === activeCaseId}
             onSelect={onSelectCase}
             onReorder={onReorderCases}
+            onArchive={onArchiveCase}
+            onDelete={onDeleteCase}
           />
         );
       })}

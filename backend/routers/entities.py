@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 from backend.models.schemas import EntityNode
 from backend.services.graph_service import GraphService
+from backend.routers.auth import get_current_user, User
 
 router = APIRouter(prefix="/entities", tags=["Entities"])
 service = GraphService()
@@ -9,7 +10,8 @@ service = GraphService()
 @router.get("", response_model=List[EntityNode])
 def search_entities(
     query: Optional[str] = Query(None, description="Search entity by name or alias"),
-    domain: Optional[str] = Query(None)
+    domain: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user)
 ):
     graph = service.get_full_graph(domain_filter=domain)
     nodes = graph["nodes"]
@@ -24,7 +26,7 @@ def search_entities(
     return nodes
 
 @router.get("/{entity_id}", response_model=EntityNode)
-def get_entity_detail(entity_id: str):
+def get_entity_detail(entity_id: str, current_user: User = Depends(get_current_user)):
     graph = service.get_full_graph()
     for n in graph["nodes"]:
         if n["id"] == entity_id:

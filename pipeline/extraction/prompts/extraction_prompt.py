@@ -17,8 +17,27 @@ Your job is to read unstructured crime documents (FIRs, call intercepts, surveil
 - CALLED
 - MEMBERSHIP_OF / LEADS_ORGANIZATION
 
+### CONFIDENCE SCORING (required, per relationship -- do not default to one value):
+Rate each relationship's confidence from 0.0 to 1.0 based on how directly the
+TEXT ITSELF states it, not on how important the relationship seems:
+- 0.90-1.00: explicitly and unambiguously stated (e.g. "X called Y", "X is the
+  supervisor of Y", a named/witnessed transaction between X and Y).
+- 0.65-0.89: strongly implied but not stated in so many words (e.g. X and Y
+  are described acting together, or one is said to work for/report to the
+  other without an explicit action verb connecting them).
+- 0.35-0.64: inferred from indirect or circumstantial evidence (e.g. X and Y
+  are only linked through a shared account, vehicle, or third party; the
+  document hints at a connection without describing it directly).
+- Below 0.35: a weak or speculative connection you would not want an
+  investigator to treat as established fact.
+Vary the score honestly per relationship based on this rubric -- within one
+document some relationships are typically stated far more directly than
+others, and the score should reflect that difference, not repeat the same
+number for every entry.
+
 ### REQUIRED JSON OUTPUT STRUCTURE:
-Return ONLY valid JSON matching this schema:
+Return ONLY valid JSON matching this schema (the confidence value below is a
+placeholder showing the field's type/range, not a value to copy):
 ```json
 {
   "entities": [
@@ -35,7 +54,7 @@ Return ONLY valid JSON matching this schema:
       "relationship_type": "INSTRUCTED",
       "target": "Target Entity Name",
       "target_type": "PERSON",
-      "confidence": 0.95,
+      "confidence": 0.0,
       "evidence": "Direct quote or context from text"
     }
   ]

@@ -6,7 +6,10 @@ import DetailPanel from './components/DetailPanel';
 import LoginModal from './components/LoginModal';
 import LoginGate from './components/LoginGate';
 import PatternsDrawer from './components/PatternsDrawer';
-import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns, logoutUser } from './api/client';
+import {
+  fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns, logoutUser,
+  fetchCases, createCaseRecord, archiveCaseRecord, deleteCaseRecord,
+} from './api/client';
 
 const INITIAL_CASES = [
   { id: 'case-all', caseId: 'GLOBAL-MASTER-00', title: '★ Unified Global Master Network (All Domains)', entities: '10 Domains', links: 'Resolved Hub', tag: 'Global' },
@@ -76,6 +79,19 @@ export default function App() {
     setCurrentUser(null);
   };
 
+  // Load the persisted case registry (backend/routers/cases.py) once we
+  // know who's logged in. Falls back to the hardcoded INITIAL_CASES list
+  // already sitting in state if this fetch fails, so the app still works
+  // even if this one endpoint is unreachable.
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchCases()
+      .then((serverCases) => {
+        if (serverCases && serverCases.length > 0) setCases(serverCases);
+      })
+      .catch((err) => console.warn('[Case Registry Notice]', err));
+  }, [currentUser]);
+
   // Fetch Suspicious Patterns on case change
   useEffect(() => {
     fetchSuspiciousPatterns(activeCaseId)
@@ -139,6 +155,37 @@ export default function App() {
   const handleAddCase = (newCase) => {
     setCases((prev) => [...prev, newCase]);
     setActiveCaseId(newCase.id);
+    // Persist server-side so it survives a refresh and is visible to
+    // every other officer. Fire-and-forget: the sidebar already updated
+    // optimistically above; a failure here just means the case won't be
+    // there after a refresh (logged for visibility, not surfaced as an
+    // error since the pipeline run itself already succeeded).
+    createCaseRecord(newCase).catch((err) => console.warn('[Case Registry Notice]', err));
+  };
+
+  // Archive/delete update local state immediately (optimistic UI), then
+  // persist to the backend `cases` table (backend/routers/cases.py) so
+  // the change survives a refresh and is visible to every other officer.
+  // Delete never touches the underlying entities/relationships/documents
+  // for that domain, since entity resolution can merge an entity across
+  // multiple domains -- purging by domain could silently corrupt data
+  // shared with another case. It's a soft-delete of just the case
+  // 'folder' row (CaseRecord.hidden = True server-side).
+  const handleArchiveCase = (id) => {
+    if (id === 'case-all') return; // the unified master view can't be archived
+    const target = cases.find((c) => c.id === id);
+    const nextArchived = !(target && target.archived);
+    setCases((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, archived: nextArchived } : c))
+    );
+    archiveCaseRecord(id, nextArchived).catch((err) => console.warn('[Case Registry Notice]', err));
+  };
+
+  const handleDeleteCase = (id) => {
+    if (id === 'case-all') return;
+    setCases((prev) => prev.filter((c) => c.id !== id));
+    if (activeCaseId === id) setActiveCaseId('case-all');
+    deleteCaseRecord(id).catch((err) => console.warn('[Case Registry Notice]', err));
   };
 
   const handleFeedbackUpdated = (entityId, verdict) => {
@@ -219,6 +266,8 @@ export default function App() {
         onSelectCase={setActiveCaseId}
         onReorderCases={handleReorderCases}
         onAddCase={handleAddCase}
+        onArchiveCase={handleArchiveCase}
+        onDeleteCase={handleDeleteCase}
         isOpen={leftOpen}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}

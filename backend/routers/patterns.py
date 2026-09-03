@@ -22,7 +22,7 @@ class PatternAlertResponse(BaseModel):
     subgraph_edges: List[Dict[str, Any]] = []
 
 @router.get("/suspicious", response_model=List[PatternAlertResponse])
-def get_suspicious_patterns(domain: Optional[str] = None):
+def get_suspicious_patterns(domain: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """
     Scans the live network for complex crime patterns:
     - Cross-Domain Syndicate Hubs
@@ -43,7 +43,7 @@ def get_suspicious_patterns(domain: Optional[str] = None):
     return alerts
 
 @router.get("/suspicious/{pattern_id}", response_model=PatternAlertResponse)
-def get_pattern_by_id(pattern_id: str):
+def get_pattern_by_id(pattern_id: str, current_user: User = Depends(get_current_user)):
     entity_map = graph_service._load_entity_map()
     relationships = graph_service._load_relationships()
     detector = SuspiciousPatternDetector(list(entity_map.values()), relationships)

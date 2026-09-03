@@ -19,6 +19,23 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
+# Login rate limiting. Reuses the LOGIN_FAILED rows log_audit() already
+# writes on every bad attempt -- counting recent ones needs no new state
+# or storage, and unlike an in-process counter, the lockout survives a
+# backend restart since it's read straight from the audit table.
+LOGIN_LOCKOUT_WINDOW_MINUTES = 15
+LOGIN_MAX_ATTEMPTS_PER_ACCOUNT = 5   # per username, regardless of source IP
+LOGIN_MAX_ATTEMPTS_PER_IP = 20       # per IP, regardless of which username(s) it tried
+
+def _recent_failed_logins(db: Session, username: str = None, ip_address: str = None) -> int:
+    cutoff = datetime.utcnow() - timedelta(minutes=LOGIN_LOCKOUT_WINDOW_MINUTES)
+    q = db.query(AuditLog).filter(AuditLog.action == "LOGIN_FAILED", AuditLog.timestamp >= cutoff)
+    if username:
+        q = q.filter(AuditLog.username == username)
+    if ip_address:
+        q = q.filter(AuditLog.ip_address == ip_address)
+    return q.count()
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 class LoginRequest(BaseModel):
@@ -129,8 +146,24 @@ def require_role(allowed_roles: List[str]):
 
 @router.post("/login", response_model=TokenResponse)
 def login(login_req: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == login_req.username).first()
     client_ip = request.client.host if request.client else "127.0.0.1"
+
+    # Check the lockout before ever touching the password hash -- both
+    # per-account (repeated guesses at one username) and per-IP (one
+    # source spraying many usernames), each against its own threshold.
+    account_failures = _recent_failed_logins(db, username=login_req.username)
+    ip_failures = _recent_failed_logins(db, ip_address=client_ip)
+    if account_failures >= LOGIN_MAX_ATTEMPTS_PER_ACCOUNT or ip_failures >= LOGIN_MAX_ATTEMPTS_PER_IP:
+        log_audit(
+            db, action="LOGIN_BLOCKED", username=login_req.username, ip_address=client_ip, status="BLOCKED",
+            details=f"account_failures={account_failures}, ip_failures={ip_failures}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed login attempts. Try again in {LOGIN_LOCKOUT_WINDOW_MINUTES} minutes.",
+        )
+
+    user = db.query(User).filter(User.username == login_req.username).first()
 
     if not user or not verify_password(login_req.password, user.hashed_password):
         log_audit(db, action="LOGIN_FAILED", username=login_req.username, ip_address=client_ip, status="FAILED")
