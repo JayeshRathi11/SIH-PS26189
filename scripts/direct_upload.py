@@ -84,9 +84,9 @@ print("3. Uploading documents (this is the real pipeline -- same as the UI would
 form = {"domain": CASE_ID}
 for i, path in enumerate(FILE_PATHS):
     with open(path, "rb") as f:
-        form[f"files"] = (path.split("\\")[-1].split("/")[-1], f.read())
-    # urllib multipart above only keeps the LAST "files" entry per key name in this
-    # simple dict-based builder -- for 2+ files, upload one at a time instead:
+        form["files"] = (path.split("\\")[-1].split("/")[-1], f.read())
+    # One file per request, same domain each time -- the backend ingests each
+    # upload incrementally against whatever's already resolved for this case.
     status, body = req("POST", "/pipeline/upload", token=token, form_data=form)
     print(f"   File {i+1}/{len(FILE_PATHS)} ->", status, body)
     job_id = body.get("job_id")
