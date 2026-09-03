@@ -102,6 +102,7 @@ def list_audit_log(
             "resource_type": e.resource_type,
             "resource_id": e.resource_id,
             "details": e.details,
+            "ip_address": e.ip_address,
             "status": e.status,
             "content_hash": e.content_hash,
             "prev_hash": e.prev_hash,

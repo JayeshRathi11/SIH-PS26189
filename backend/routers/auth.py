@@ -144,9 +144,24 @@ def require_role(allowed_roles: List[str]):
         return current_user
     return role_checker
 
+def get_client_ip(request: Request) -> str:
+    """
+    request.client.host only reflects the LAST hop -- in production this app
+    sits behind Render's own edge proxy AND its own nginx frontend
+    (browser -> Render edge -> nginx -> Render edge -> this backend), so
+    request.client.host alone would log an internal proxy IP, not the real
+    originating client. X-Forwarded-For is appended-to (not overwritten) by
+    each well-behaved proxy hop, so the FIRST entry is the original client.
+    """
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(login_req: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    client_ip = get_client_ip(request)
 
     # Check the lockout before ever touching the password hash -- both
     # per-account (repeated guesses at one username) and per-IP (one

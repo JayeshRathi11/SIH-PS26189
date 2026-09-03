@@ -3,7 +3,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.db import get_db, InvestigatorFeedback, EntityRecord, RelationshipRecord, UserRole, User
-from backend.routers.auth import get_current_user, require_role, log_audit
+from fastapi import Request
+from backend.routers.auth import get_current_user, require_role, log_audit, get_client_ip
 from pipeline.graph.neo4j_client import Neo4jClient
 
 router = APIRouter(prefix="/graph", tags=["Human-in-the-Loop Feedback"])
@@ -28,6 +29,7 @@ class FeedbackResponse(BaseModel):
 @router.post("/feedback", response_model=FeedbackResponse)
 def submit_feedback(
     fb_req: FeedbackRequest,
+    request: Request,
     current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)
 ):
@@ -117,7 +119,8 @@ def submit_feedback(
         user_id=current_user.id,
         resource_type=fb_req.target_type.upper(),
         resource_id=target_identifier,
-        details=f"Verdict: {fb_req.verdict.upper()} | Notes: {fb_req.officer_notes}"
+        details=f"Verdict: {fb_req.verdict.upper()} | Notes: {fb_req.officer_notes}",
+        ip_address=get_client_ip(request)
     )
 
     neo4j.close()

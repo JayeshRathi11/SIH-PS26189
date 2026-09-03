@@ -204,6 +204,7 @@ export default function AuditLogsPage({ currentUser }) {
                     <th style={{ padding: '10px 14px' }}>Timestamp</th>
                     <th style={{ padding: '10px 14px' }}>Action Type</th>
                     <th style={{ padding: '10px 14px' }}>Officer / Agent</th>
+                    <th style={{ padding: '10px 14px' }}>IP Address</th>
                     <th style={{ padding: '10px 14px' }}>Target Asset</th>
                     <th style={{ padding: '10px 14px' }}>Details</th>
                     <th style={{ padding: '10px 14px' }}>Outcome</th>
@@ -228,6 +229,9 @@ export default function AuditLogsPage({ currentUser }) {
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
                         {entry.username || '—'}
+                      </td>
+                      <td style={{ padding: '12px 14px', color: 'var(--ink-soft)', fontFamily: 'IBM Plex Mono, monospace', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                        {entry.ip_address || '—'}
                       </td>
                       <td style={{ padding: '12px 14px', color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>
                         {entry.resource_type ? `${entry.resource_type}${entry.resource_id ? ` · ${entry.resource_id}` : ''}` : (entry.resource_id || '—')}
