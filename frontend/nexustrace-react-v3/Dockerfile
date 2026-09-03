@@ -24,7 +24,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # like Render where backend+frontend are separate services with their own
 # public URLs -- there you just set BACKEND_URL to the backend service's
 # real URL as an env var, no rebuild required.
-RUN printf 'server {\n\
+RUN mkdir -p /etc/nginx/templates && printf 'server {\n\
     listen 80;\n\
     location / {\n\
         root /usr/share/nginx/html;\n\
