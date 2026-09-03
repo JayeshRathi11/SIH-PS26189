@@ -1,4 +1,5 @@
 import io
+import json
 import uuid
 import hashlib
 from datetime import datetime
@@ -167,7 +168,33 @@ async def upload_case_document(
             continue
 
         combined_parts.append(f"=== Document: {filename} ===\n{text}")
-        accepted_files.append((filename, hashlib.sha256(raw_bytes).hexdigest()))
+        file_hash = hashlib.sha256(raw_bytes).hexdigest()
+        accepted_files.append((filename, file_hash))
+
+        # Also record this document for the Dossiers/"Primary Evidence
+        # Documents" page, which -- unlike everything else in this app --
+        # reads from a local parsed_documents.jsonl file rather than the
+        # database. Only the original bulk-loaded demo cases ever wrote to
+        # it, so live uploads (i.e. every real case used in the demo) showed
+        # "No source documents indexed" despite having real extracted data.
+        # Wrapped defensively: this is a nice-to-have for the evidence
+        # viewer page, never a reason to fail the actual upload/extraction.
+        try:
+            from pipeline.config import PROCESSED_DIR
+            PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+            jsonl_path = PROCESSED_DIR / "parsed_documents.jsonl"
+            doc_record = {
+                "doc_id": f"LIVE_{uuid.uuid4().hex[:8].upper()}_{filename}",
+                "doc_type": ext.lstrip(".").upper() or "DOC",
+                "domain": domain,
+                "text": text,
+                "source_file": filename,
+                "sha256_hash": file_hash,
+            }
+            with open(jsonl_path, "a", encoding="utf-8") as jf:
+                jf.write(json.dumps(doc_record, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
 
     if not combined_parts:
         detail = "Could not extract any text from the uploaded document(s)."
