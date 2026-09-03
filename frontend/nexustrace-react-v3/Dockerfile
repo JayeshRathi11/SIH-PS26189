@@ -33,7 +33,8 @@ RUN mkdir -p /etc/nginx/templates && printf 'server {\n\
     }\n\
     location /api/ {\n\
         proxy_pass ${BACKEND_URL}/;\n\
-        proxy_set_header Host $host;\n\
+        proxy_ssl_server_name on;\n\
+        proxy_set_header Host $proxy_host;\n\
         proxy_set_header X-Real-IP $remote_addr;\n\
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
         proxy_set_header X-Forwarded-Proto $scheme;\n\
