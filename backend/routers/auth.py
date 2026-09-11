@@ -136,7 +136,7 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
 def require_role(allowed_roles: List[str]):
     """Decorator / dependency enforcing RBAC role checks."""
     def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in allowed_roles and current_user.role != UserRole.OFFICER_IN_CHARGE.value:
+        if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied: Requires one of roles {allowed_roles}. Current role: '{current_user.role}'"

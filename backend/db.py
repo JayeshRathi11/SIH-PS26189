@@ -377,7 +377,8 @@ def init_db():
     migrate_columns()
     db = SessionLocal()
     try:
-        seed_default_users(db)
+        if os.getenv("DEMO_MODE", "false").lower() == "true":
+            seed_default_users(db)
         seed_default_cases(db)
     finally:
         db.close()

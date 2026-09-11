@@ -9,33 +9,20 @@ def evaluate_domain(domain_key: str, extracted_entities: List[Dict[str, Any]], e
     Calculates precision, recall, and F1 score with alias and relation normalization.
     """
     gt_file = GROUND_TRUTH_DIR / f"{domain_key}.json"
-    
+
     if not gt_file.exists():
-        return {
-            "domain": domain_key,
-            "entity_precision": 0.94,
-            "entity_recall": 0.90,
-            "entity_f1": 0.92,
-            "relationship_precision": 0.91,
-            "relationship_recall": 0.88,
-            "relationship_f1": 0.89,
-            "ground_truth_matched": False
-        }
+        raise FileNotFoundError(
+            f"No ground truth file for domain '{domain_key}' at {gt_file} -- "
+            f"cannot score this domain's extraction quality without an answer key."
+        )
 
     try:
         with open(gt_file, "r", encoding="utf-8") as f:
             gt_data = json.load(f)
-    except Exception:
-        return {
-            "domain": domain_key,
-            "entity_precision": 0.92,
-            "entity_recall": 0.89,
-            "entity_f1": 0.90,
-            "relationship_precision": 0.90,
-            "relationship_recall": 0.86,
-            "relationship_f1": 0.88,
-            "ground_truth_matched": True
-        }
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(
+            f"Ground truth file for domain '{domain_key}' at {gt_file} could not be parsed: {e}"
+        ) from e
 
     # Extract all ground-truth entity names and aliases
     gt_entity_names = set()
@@ -91,11 +78,11 @@ def evaluate_domain(domain_key: str, extracted_entities: List[Dict[str, Any]], e
 
     return {
         "domain": domain_key,
-        "entity_precision": round(max(0.70, min(1.0, ent_prec)), 4),
-        "entity_recall": round(max(0.70, min(1.0, ent_rec)), 4),
-        "entity_f1": round(max(0.70, min(1.0, ent_f1)), 4),
-        "relationship_precision": round(max(0.70, min(1.0, rel_prec)), 4),
-        "relationship_recall": round(max(0.70, min(1.0, rel_rec)), 4),
-        "relationship_f1": round(max(0.70, min(1.0, rel_f1)), 4),
+        "entity_precision": round(ent_prec, 4),
+        "entity_recall": round(ent_rec, 4),
+        "entity_f1": round(ent_f1, 4),
+        "relationship_precision": round(rel_prec, 4),
+        "relationship_recall": round(rel_rec, 4),
+        "relationship_f1": round(rel_f1, 4),
         "ground_truth_matched": True
     }

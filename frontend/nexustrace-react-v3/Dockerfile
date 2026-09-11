@@ -7,6 +7,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . ./
+
+# Demo-only "Quick Access" login personas (SignInPage.jsx, LoginModal.jsx)
+# are compiled out entirely unless this is explicitly set true at build
+# time -- default is a real production build with no demo credentials in
+# the shipped JS bundle. Pass --build-arg VITE_DEMO_MODE=true for a demo.
+ARG VITE_DEMO_MODE=false
+ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 RUN npm run build
 
 # Production Stage with Nginx

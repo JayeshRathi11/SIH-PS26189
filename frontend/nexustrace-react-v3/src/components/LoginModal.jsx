@@ -4,17 +4,21 @@ import { loginUser, logoutUser } from '../api/client';
 export default function LoginModal({ isOpen, onClose, currentUser, onUserChange, onLogout }) {
   if (!isOpen) return null;
 
-  const [username, setUsername] = useState(currentUser?.username || 'investigator_01');
-  const [password, setPassword] = useState('Investigate#2026');
+  const [username, setUsername] = useState(currentUser?.username || '');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const quickUsers = [
+  // Demo-only persona switcher -- must never render outside a demo build.
+  // Gated on a Vite build-time env var, set VITE_DEMO_MODE=true to enable
+  // (see Dockerfile). Defaults to disabled.
+  const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+  const quickUsers = DEMO_MODE ? [
     { name: 'Lead Investigator', user: 'investigator_01', pass: 'Investigate#2026', role: 'INVESTIGATOR' },
     { name: 'NCRB Administrator', user: 'ncrb_admin', pass: 'Admin#MHA2026', role: 'OFFICER_IN_CHARGE' },
     { name: 'Judicial Compliance Auditor', user: 'judicial_auditor', pass: 'Audit#Secure2026', role: 'AUDITOR' }
-  ];
+  ] : [];
 
   const handleLogin = async (e) => {
     e?.preventDefault();
@@ -202,7 +206,8 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange,
           </button>
         </form>
 
-        {/* Quick Role Persona Switcher */}
+        {/* Quick Role Persona Switcher -- demo builds only */}
+        {DEMO_MODE && (
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
           <p style={{ margin: '0 0 8px', fontSize: '10px', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'IBM Plex Mono, monospace' }}>
             Quick Security Personas:
@@ -234,6 +239,7 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange,
             ))}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

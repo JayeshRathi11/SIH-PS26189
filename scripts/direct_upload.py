@@ -1,23 +1,26 @@
 """
 Bypasses the browser upload widget entirely and talks straight to the
-live backend -- use this if the "+ Add New Case" / drag-drop upload in
+backend -- use this if the "+ Add New Case" / drag-drop upload in
 the app keeps failing/hanging. Same real pipeline (Gemini extraction,
 entity resolution) as a normal upload, just triggered by this script
 instead of clicking through the flaky UI. Zero extra dependencies --
 stdlib only, works with plain `python direct_upload.py`.
 
-EDIT THE THREE VALUES BELOW, then run it.
+Set NEXUSTRACE_BACKEND_URL, NEXUSTRACE_USERNAME, NEXUSTRACE_PASSWORD as
+environment variables before running (no credentials or backend URL are
+hardcoded here). Then edit CASE_ID / CASE_TITLE / FILE_PATHS below.
 """
 import json
 import mimetypes
+import os
 import uuid
 import urllib.request
 import urllib.error
 import time
 
-BACKEND = "https://nexustrace-backend.onrender.com"
-USERNAME = "investigator_01"
-PASSWORD = "Investigate#2026"
+BACKEND = os.environ["NEXUSTRACE_BACKEND_URL"]
+USERNAME = os.environ["NEXUSTRACE_USERNAME"]
+PASSWORD = os.environ["NEXUSTRACE_PASSWORD"]
 
 # --- Your new case ---
 CASE_ID = "DEMO-FIR-11"          # short, unique, no spaces -- becomes the "domain"

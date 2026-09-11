@@ -8,12 +8,16 @@ import { loginUser } from '../api/client';
 // dashboard whenever there's no signed-in user (first load with no/expired
 // token, or right after logout), and hands the authenticated profile back
 // via onAuthenticated.
-const QUICK_USERS = [
+// Demo-only "Quick Access" credentials -- must never render outside a demo
+// build. Gated on a Vite build-time env var, set VITE_DEMO_MODE=true to
+// enable (see Dockerfile). Defaults to disabled.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+const QUICK_USERS = DEMO_MODE ? [
   { name: 'Lead Investigator', user: 'investigator_01', pass: 'Investigate#2026', role: 'INVESTIGATOR', badge: 'INV-8821' },
   { name: 'Field Investigator 02', user: 'investigator_02', pass: 'Investigate#2026B', role: 'INVESTIGATOR', badge: 'INV-8822' },
   { name: 'NCRB Administrator', user: 'ncrb_admin', pass: 'Admin#MHA2026', role: 'OFFICER_IN_CHARGE', badge: 'ADM-001' },
   { name: 'Judicial Auditor', user: 'judicial_auditor', pass: 'Audit#Secure2026', role: 'AUDITOR', badge: 'AUD-904' },
-];
+] : [];
 
 export default function SignInPage({ onAuthenticated, theme, onToggleTheme }) {
   const [showQuickAccess, setShowQuickAccess] = useState(false);
@@ -115,6 +119,7 @@ export default function SignInPage({ onAuthenticated, theme, onToggleTheme }) {
           </button>
         </form>
 
+        {DEMO_MODE && (
         <div className="login-gate__quick">
           <button
             type="button"
@@ -145,6 +150,7 @@ export default function SignInPage({ onAuthenticated, theme, onToggleTheme }) {
             </div>
           )}
         </div>
+        )}
 
         <div className="login-gate__footer mono">
           UNAUTHORIZED ACCESS TO THIS SYSTEM IS A PUNISHABLE OFFENSE &middot; ALL SESSIONS LOGGED
