@@ -1,20 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchCaseDocuments, submitInvestigatorFeedback, explainPath, downloadDossier } from '../api/client';
-
-function formatTimestamp(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }) + ' IST';
-}
+import { formatTimestamp } from '../utils/formatTimestamp';
 
 export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUpdated }) {
   const [selectedDocId, setSelectedDocId] = useState(null);

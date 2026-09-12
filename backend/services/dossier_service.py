@@ -137,7 +137,7 @@ class CourtDossierGenerator:
         meta_table_data = [
             [
                 Paragraph(f"<b>Dossier Ref:</b> {dossier_no}", self.body_style),
-                Paragraph(f"<b>Date:</b> {datetime.utcnow().strftime('%d %b %Y %H:%M UTC')}", self.body_style),
+                Paragraph(f"<b>Date:</b> {datetime.utcnow().strftime('%Y-%m-%d %I:%M %p UTC')}", self.body_style),
                 Paragraph(f"<b>Classification:</b> RESTRICTED - SEC 123 IEA", self.body_bold)
             ]
         ]

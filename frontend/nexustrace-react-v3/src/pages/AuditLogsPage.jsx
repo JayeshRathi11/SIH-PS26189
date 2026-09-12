@@ -1,21 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchAuditLogs, verifyAuditChain, openCaseLiveSync } from '../api/client';
+import { formatTimestamp } from '../utils/formatTimestamp';
 
 const PAGE_SIZE = 10;
-
-function formatTimestamp(iso) {
-  if (!iso) return '—';
-  // The backend stores/returns timestamps in UTC (datetime.utcnow()); the
-  // audit ledger is an India MHA/NCRB system, so display in IST (UTC+5:30,
-  // no DST) rather than the browser's local zone or raw UTC.
-  const d = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : `${iso}Z`);
-  if (isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-  }) + ' IST';
-}
 
 function shortHash(h) {
   if (!h) return '—';

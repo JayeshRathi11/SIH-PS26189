@@ -105,8 +105,20 @@ export default function CaseFilesPage({
   };
 
   // ---- "+ Add New Case" form: real document upload, not just a name ----
+  // Root cause of the "most uploads silently do nothing" bug: `fileList`
+  // (input.files, or dataTransfer.files on drop) is a LIVE, transient
+  // reference -- it gets cleared/invalidated once the triggering event
+  // handler returns (input.files empties out the moment `e.target.value`
+  // is reset right below; DataTransfer objects are spec'd to go stale
+  // after the event dispatch completes). Array.from(fileList) MUST happen
+  // here, synchronously, at the top of this function -- it used to happen
+  // lazily inside the setNewCaseFiles updater, which React doesn't run
+  // until after this handler (and the `e.target.value = ''` reset) has
+  // already finished, so it was reading an already-emptied FileList and
+  // silently added zero files most of the time.
   const handleFilesPicked = (fileList) => {
-    setNewCaseFiles((prev) => [...prev, ...Array.from(fileList)]);
+    const filesArray = Array.from(fileList);
+    setNewCaseFiles((prev) => [...prev, ...filesArray]);
   };
   const removeNewCaseFile = (idx) => {
     setNewCaseFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -196,8 +208,11 @@ export default function CaseFilesPage({
   };
 
   // ---- add new evidence to an already-open case & re-run incrementally ----
+  // Same live-FileList fix as handleFilesPicked above -- Array.from() must
+  // happen synchronously here, not lazily inside the setEvidenceFiles updater.
   const handleEvidenceFilesPicked = (fileList) => {
-    setEvidenceFiles((prev) => [...prev, ...Array.from(fileList)]);
+    const filesArray = Array.from(fileList);
+    setEvidenceFiles((prev) => [...prev, ...filesArray]);
   };
   const removeEvidenceFile = (idx) => {
     setEvidenceFiles((prev) => prev.filter((_, i) => i !== idx));
