@@ -19,6 +19,8 @@ export default function Board({
   focusedPattern,
   onClearPatternFocus,
   onFeedbackUpdated,
+  showRejected,
+  onToggleShowRejected,
 }) {
   // Multiple POLE pills can be active at once (e.g. Persons + Orgs together) --
   // an entity is visible if it matches ANY selected pill (OR/union), matching how
@@ -430,6 +432,16 @@ export default function Board({
             now lives in the floating HUD next to zoom, where it's read alongside
             the controls that actually change what's visible. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            className={`filter-chip ${showRejected ? 'active' : ''}`}
+            onClick={onToggleShowRejected}
+            title={showRejected
+              ? 'Rejected entities/relationships are shown, greyed with a ✗ badge -- click to hide them again'
+              : 'Rejected entities/relationships are hidden by default -- click to show them, visually marked'}
+          >
+            {showRejected ? '✗ Rejected: Shown' : 'Show Rejected'}
+          </span>
+
           <input
             type="text"
             placeholder="Search on board..."

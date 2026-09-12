@@ -79,10 +79,16 @@ class PipelineJobResponse(BaseModel):
 
 class EvaluationScoreResponse(BaseModel):
     domain: str
-    entity_precision: float
-    entity_recall: float
-    entity_f1: float
-    relationship_precision: float
-    relationship_recall: float
-    relationship_f1: float
+    # Optional, not required: a case with no ground truth file (any case
+    # created through the real "+ Add New Case" workflow -- ground truth
+    # only exists for the 10 pre-seeded demo domains) can't be scored at
+    # all, and null metrics + ground_truth_matched=False is how that's
+    # reported instead of raising (see get_domain_evaluation() below).
+    entity_precision: Optional[float] = None
+    entity_recall: Optional[float] = None
+    entity_f1: Optional[float] = None
+    relationship_precision: Optional[float] = None
+    relationship_recall: Optional[float] = None
+    relationship_f1: Optional[float] = None
     ground_truth_matched: bool
+    message: Optional[str] = None

@@ -860,6 +860,13 @@ svg.threads {
   opacity: 0.25;
 }
 
+.pin-node.rejected {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+  border-style: dashed;
+  border-color: var(--stamp-red);
+}
+
 .pin-node .pname-row {
   display: flex;
   justify-content: space-between;

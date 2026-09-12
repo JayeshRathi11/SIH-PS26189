@@ -32,6 +32,9 @@ from datetime import datetime, date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from dotenv import load_dotenv
+load_dotenv()  # DATABASE_URL must be loaded before importing backend.db, or it silently falls back to local sqlite
+
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import OperationalError
 from backend.db import (

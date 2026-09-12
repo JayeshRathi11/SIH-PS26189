@@ -7,7 +7,11 @@ backend again after running this, or they'll come back.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from backend.db import SessionLocal, CaseRecord
+from dotenv import load_dotenv
+load_dotenv()  # DATABASE_URL must be loaded before importing backend.db, or it silently falls back to local sqlite
+from backend.db import SessionLocal, CaseRecord, engine
+
+print(f"Connecting to: {engine.url.render_as_string(hide_password=True)}")
 
 db = SessionLocal()
 try:

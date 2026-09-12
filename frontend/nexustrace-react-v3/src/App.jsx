@@ -69,6 +69,11 @@ export default function App() {
   const [selectedEntityId, setSelectedEntityId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Officer-rejected entities/relationships are hidden by default (see
+  // GraphService.get_full_graph's include_rejected param) -- this lets the
+  // Case Board opt into seeing them again, visually distinguished rather
+  // than mixed in as if still active (see PinNode.jsx's .rejected badge).
+  const [showRejected, setShowRejected] = useState(false);
 
   // Temporal Slider State
   const [temporalDate, setTemporalDate] = useState(null);
@@ -148,7 +153,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const { entities: newEntities, threads: newThreads } = await fetchCaseGraph(activeCaseId);
+      const { entities: newEntities, threads: newThreads } = await fetchCaseGraph(activeCaseId, null, showRejected);
       setEntities(newEntities);
       setThreads(newThreads);
       setSelectedEntityId((prev) => {
@@ -161,7 +166,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [activeCaseId, currentUser]);
+  }, [activeCaseId, currentUser, showRejected]);
 
   useEffect(() => {
     loadGraph();
@@ -348,6 +353,8 @@ export default function App() {
               focusedPattern={focusedPattern}
               onClearPatternFocus={() => setFocusedPattern(null)}
               onFeedbackUpdated={handleFeedbackUpdated}
+              showRejected={showRejected}
+              onToggleShowRejected={() => setShowRejected((v) => !v)}
             />
           )}
 

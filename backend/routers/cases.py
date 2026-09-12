@@ -1,9 +1,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from backend.db import get_db, CaseRecord, UserRole, User
+from backend.db import get_db, CaseRecord, EntityRecord, RelationshipRecord, UserRole, User
 from backend.routers.auth import get_current_user, require_role, log_audit
 from backend.ws_manager import manager
 from pipeline.config import DOMAINS
@@ -77,6 +78,40 @@ def _serialize(c: CaseRecord) -> dict:
     }
 
 
+def _live_domain_counts(db: Session):
+    """
+    Live entity/relationship counts per domain, recomputed on every call --
+    CaseRecord.entities_label/links_label are static strings set once at
+    case creation and never updated afterwards (not even when a pipeline
+    job actually finishes populating that domain), so a case created via
+    "+ Add New Case" showed a permanently stale "0 entities / 0 links"
+    forever. Computing these fresh here instead of trusting the stored
+    labels means this class of staleness can't recur regardless of what
+    else changes the underlying data.
+
+    REJECTED entities/relationships are excluded, matching what
+    GraphService.get_full_graph() shows by default -- this count should
+    reflect what an officer actually sees on the Case Board, not the raw
+    row count including rejected junk.
+
+    An entity can belong to multiple domains (cross-case entity
+    resolution), so this can't be a single SQL GROUP BY on the entities
+    side -- `domains` is a JSON list column, not a scalar to group on.
+    """
+    entity_counts = {}
+    for (domains,) in db.query(EntityRecord.domains).filter(EntityRecord.status != "REJECTED").all():
+        for d in (domains or []):
+            entity_counts[d] = entity_counts.get(d, 0) + 1
+
+    rel_counts = dict(
+        db.query(RelationshipRecord.domain, func.count(RelationshipRecord.id))
+        .filter(RelationshipRecord.status != "REJECTED")
+        .group_by(RelationshipRecord.domain)
+        .all()
+    )
+    return entity_counts, rel_counts
+
+
 @router.get("", response_model=List[CaseResponse])
 def list_cases(
     db: Session = Depends(get_db),
@@ -90,7 +125,20 @@ def list_cases(
         .order_by(CaseRecord.sort_order, CaseRecord.created_at)
         .all()
     )
-    return [_serialize(c) for c in rows]
+    entity_counts, rel_counts = _live_domain_counts(db)
+
+    serialized = []
+    for c in rows:
+        row = _serialize(c)
+        # case-all's "10 Domains" / "Resolved Hub" labels are a deliberate
+        # summary, not an entity/link count -- leave the synthetic master
+        # view alone and only replace real per-domain cases' counts.
+        if c.id != "case-all":
+            domain = _resolve_case_domain(c.id) or c.id
+            row["entities"] = str(entity_counts.get(domain, 0))
+            row["links"] = str(rel_counts.get(domain, 0))
+        serialized.append(row)
+    return serialized
 
 
 @router.post("", response_model=CaseResponse)
