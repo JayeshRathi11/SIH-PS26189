@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import EvaluationPanel from '../components/EvaluationPanel';
+import WebcamCaptureModal from '../components/WebcamCaptureModal';
 import {
   runPipeline,
   uploadCaseDocuments,
@@ -57,6 +58,11 @@ export default function CaseFilesPage({
   // what an officer is actually working on, while archived cases stay one
   // click away rather than disappearing.
   const [showArchived, setShowArchived] = useState(false);
+  // Webcam capture modals -- one flag per form, since "+Add New Case" and
+  // "Add Evidence" are two separate dropzones that can't both be open at
+  // once anyway, but each needs its own on/off state.
+  const [showWebcamForNewCase, setShowWebcamForNewCase] = useState(false);
+  const [showWebcamForEvidence, setShowWebcamForEvidence] = useState(false);
 
   const filteredCases = cases.filter(
     (c) =>
@@ -427,17 +433,25 @@ export default function CaseFilesPage({
               <span className="add-case-dropzone-icon">&#128193;</span>
               <span className="add-case-dropzone-text">
                 <strong>{evidenceFiles.length > 0 ? `${evidenceFiles.length} file(s) selected` : 'Click or drag files to choose them'}</strong>
-                <span>.txt, .docx, .pdf — multiple files allowed</span>
+                <span>.txt, .docx, .pdf, .jpg, .png — multiple files allowed</span>
               </span>
             </div>
             <input
               ref={evidenceFileInputRef}
               type="file"
               multiple
-              accept=".txt,.docx,.pdf"
+              accept=".txt,.docx,.pdf,.jpg,.jpeg,.png"
               style={{ display: 'none' }}
               onChange={(e) => { handleEvidenceFilesPicked(e.target.files); e.target.value = ''; }}
             />
+            <button
+              type="button"
+              className="tactical-btn"
+              style={{ marginTop: '8px' }}
+              onClick={() => setShowWebcamForEvidence(true)}
+            >
+              &#128247; Capture with Webcam
+            </button>
 
             {evidenceFiles.length > 0 && (
               <div className="add-case-file-list">
@@ -466,6 +480,13 @@ export default function CaseFilesPage({
               </button>
             </div>
           </form>
+        )}
+
+        {showWebcamForEvidence && (
+          <WebcamCaptureModal
+            onCapture={handleEvidenceFilesPicked}
+            onClose={() => setShowWebcamForEvidence(false)}
+          />
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
@@ -644,17 +665,25 @@ export default function CaseFilesPage({
             <span className="add-case-dropzone-icon">&#128193;</span>
             <span className="add-case-dropzone-text">
               <strong>{newCaseFiles.length > 0 ? `${newCaseFiles.length} file(s) selected` : 'Click or drag files to upload source documents'}</strong>
-              <span>.txt, .docx, .pdf — the FIR / statements this case is built from</span>
+              <span>.txt, .docx, .pdf, .jpg, .png — the FIR / statements this case is built from</span>
             </span>
           </div>
           <input
             ref={newCaseFileInputRef}
             type="file"
             multiple
-            accept=".txt,.docx,.pdf"
+            accept=".txt,.docx,.pdf,.jpg,.jpeg,.png"
             style={{ display: 'none' }}
             onChange={(e) => { handleFilesPicked(e.target.files); e.target.value = ''; }}
           />
+          <button
+            type="button"
+            className="tactical-btn"
+            style={{ marginTop: '8px' }}
+            onClick={() => setShowWebcamForNewCase(true)}
+          >
+            &#128247; Capture with Webcam
+          </button>
 
           {newCaseFiles.length > 0 && (
             <div className="add-case-file-list">
@@ -680,6 +709,13 @@ export default function CaseFilesPage({
             </button>
           </div>
         </form>
+      )}
+
+      {showWebcamForNewCase && (
+        <WebcamCaptureModal
+          onCapture={handleFilesPicked}
+          onClose={() => setShowWebcamForNewCase(false)}
+        />
       )}
 
       <div className="case-cards-grid">

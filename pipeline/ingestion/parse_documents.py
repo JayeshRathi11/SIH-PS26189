@@ -4,6 +4,7 @@ from pathlib import Path
 # Add project root directory to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+import io
 import os
 import json
 import re
@@ -77,6 +78,63 @@ def extract_text_from_pdf(pdf_path) -> str:
         return "\n".join(pages_text)
     except Exception as e:
         print(f"[PDF Extractor Error] Failed to read {pdf_path}: {e}")
+        return ""
+
+# Lazily constructed and reused across calls within the same process --
+# these load real model weights (downloaded from HF Hub on first use), so
+# building a fresh RecognitionPredictor/DetectionPredictor per uploaded
+# image would repeat that cost on every single webcam capture or scanned
+# upload. Populated on first call to extract_text_from_image().
+_OCR_RECOGNITION_PREDICTOR = None
+_OCR_DETECTION_PREDICTOR = None
+
+def extract_text_from_image(image_bytes_or_path) -> str:
+    """
+    Extracts text from a photographed/scanned document image via Surya OCR
+    (see pipeline/requirements.txt) -- this is what a webcam-captured page
+    or a directly-uploaded .jpg/.png runs through (see backend/routers/
+    pipeline.py's SUPPORTED_UPLOAD_EXTENSIONS / _extract_text_from_upload()).
+    Same pattern as extract_text_from_pdf above: raises a clear error if the
+    package isn't installed rather than silently returning empty text.
+    Accepts raw bytes, a file-like object, or a filesystem path.
+
+    Pinned to surya-ocr==0.14.7 (see pipeline/requirements.txt) rather than
+    the current latest release: newer Surya versions (0.20+) moved to a
+    served-model architecture that spawns a vLLM server in Docker on a
+    machine with an NVIDIA GPU (or requires a separately-installed native
+    llama-server binary otherwise) -- neither is available on this app's
+    actual deployment target (a plain Render web service, no Docker socket,
+    no GPU), so that architecture can't run there at all. 0.14.7 is the
+    last release using the classic in-process RecognitionPredictor/
+    DetectionPredictor pair (plain `transformers` models, CPU-friendly),
+    which matches how every other extractor in this file already runs.
+    """
+    try:
+        from PIL import Image
+        from surya.recognition import RecognitionPredictor
+        from surya.detection import DetectionPredictor
+    except ImportError as e:
+        raise RuntimeError(
+            "Image OCR requires the 'surya-ocr' package. Install it with "
+            "'pip install surya-ocr==0.14.7' (already listed in pipeline/requirements.txt)."
+        ) from e
+
+    global _OCR_RECOGNITION_PREDICTOR, _OCR_DETECTION_PREDICTOR
+    if _OCR_RECOGNITION_PREDICTOR is None:
+        _OCR_RECOGNITION_PREDICTOR = RecognitionPredictor()
+        _OCR_DETECTION_PREDICTOR = DetectionPredictor()
+
+    try:
+        if isinstance(image_bytes_or_path, (bytes, bytearray)):
+            image = Image.open(io.BytesIO(image_bytes_or_path)).convert("RGB")
+        else:
+            image = Image.open(image_bytes_or_path).convert("RGB")
+
+        predictions = _OCR_RECOGNITION_PREDICTOR([image], det_predictor=_OCR_DETECTION_PREDICTOR)
+        lines = [line.text for line in predictions[0].text_lines]
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"[Image OCR Error] Failed to OCR image: {e}")
         return ""
 
 def import_and_prepare_dataset():

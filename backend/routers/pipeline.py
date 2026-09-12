@@ -11,7 +11,7 @@ from pipeline.extraction.llm_extractor import LLMExtractor
 from pipeline.normalization.schema_mapper import normalize_relationship
 from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
-from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf
+from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf, extract_text_from_image
 from backend.db import get_db, JobRecord, SessionLocal, User, UserRole
 from backend.routers.auth import require_role, get_current_user, log_audit, get_client_ip
 from backend.ws_manager import manager
@@ -137,8 +137,12 @@ def trigger_pipeline(
         created_at=job.created_at
     )
 
-# Extensions this endpoint knows how to turn into raw text.
-SUPPORTED_UPLOAD_EXTENSIONS = {".txt", ".docx", ".pdf"}
+# Extensions this endpoint knows how to turn into raw text. .jpg/.jpeg/.png
+# cover both a directly-uploaded scanned photo and a webcam capture (see
+# WebcamCaptureModal.jsx, which always produces a .jpg) -- both go through
+# the exact same OCR branch below, there's no separate "webcam" code path.
+SUPPORTED_UPLOAD_EXTENSIONS = {".txt", ".docx", ".pdf", ".jpg", ".jpeg", ".png"}
+IMAGE_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 def _extract_text_from_upload(filename: str, raw_bytes: bytes) -> str:
     """Turn one uploaded file's bytes into plain text, by extension."""
@@ -147,6 +151,8 @@ def _extract_text_from_upload(filename: str, raw_bytes: bytes) -> str:
         return extract_text_from_docx(io.BytesIO(raw_bytes))
     if ext == ".pdf":
         return extract_text_from_pdf(io.BytesIO(raw_bytes))
+    if ext in IMAGE_UPLOAD_EXTENSIONS:
+        return extract_text_from_image(raw_bytes)
     # .txt
     try:
         return raw_bytes.decode("utf-8")
@@ -157,7 +163,7 @@ def _extract_text_from_upload(filename: str, raw_bytes: bytes) -> str:
 async def upload_case_document(
     background_tasks: BackgroundTasks,
     request: Request,
-    files: List[UploadFile] = File(..., description="One or more FIR / case source documents (.txt, .docx, .pdf)"),
+    files: List[UploadFile] = File(..., description="One or more FIR / case source documents (.txt, .docx, .pdf, .jpg, .png -- images are run through OCR)"),
     domain: str = Form(..., description="Target domain / case key these documents belong to"),
     current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)

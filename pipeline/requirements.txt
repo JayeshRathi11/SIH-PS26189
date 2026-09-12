@@ -8,3 +8,11 @@ requests>=2.28.0
 python-dotenv>=1.0.0
 spacy>=3.5.0
 pytest>=7.0.0
+# Pinned, not >= : surya-ocr 0.20+ moved to a served-model architecture
+# (spawns a vLLM server in Docker on an NVIDIA GPU, or needs a separately
+# installed native llama-server binary otherwise) that this app's
+# deployment target (a plain Render web service -- no Docker socket, no
+# GPU) can't run. 0.14.7 is the last release with the classic in-process
+# RecognitionPredictor/DetectionPredictor pair -- see extract_text_from_image()
+# in pipeline/ingestion/parse_documents.py.
+surya-ocr==0.14.7

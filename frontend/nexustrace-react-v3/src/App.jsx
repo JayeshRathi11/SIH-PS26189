@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NavigationSidebar from './components/NavigationSidebar';
 import Board from './components/Board';
 import LoginModal from './components/LoginModal';
@@ -74,6 +74,19 @@ export default function App() {
   // Case Board opt into seeing them again, visually distinguished rather
   // than mixed in as if still active (see PinNode.jsx's .rejected badge).
   const [showRejected, setShowRejected] = useState(false);
+  // Guards loadGraph() against out-of-order network responses: switching
+  // domains quickly (e.g. "+Add New Case" setting activeCaseId, then
+  // immediately "Open on board") can fire a second /api/graph request
+  // before the first one's response arrives. Without this, whichever
+  // response happens to resolve LAST wins and gets painted onto the
+  // board -- regardless of whether it's actually for the domain currently
+  // selected -- which is how the board could end up showing a stale
+  // domain's (or the much larger case-all's) entities while the dropdown
+  // correctly showed the new one. Every call to loadGraph() claims the
+  // next id; a response is only applied if its id still matches the
+  // latest call by the time it resolves, so a superseded request's
+  // result is discarded instead of overwriting the newer one.
+  const graphRequestIdRef = useRef(0);
 
   // Temporal Slider State
   const [temporalDate, setTemporalDate] = useState(null);
@@ -150,10 +163,16 @@ export default function App() {
   // Fetch graph when active case changes
   const loadGraph = useCallback(async () => {
     if (!activeCaseId || !currentUser) return;
+    const requestId = ++graphRequestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const { entities: newEntities, threads: newThreads } = await fetchCaseGraph(activeCaseId, null, showRejected);
+      // A newer loadGraph() call has started since this one began -- its
+      // response (or one still in flight) is what should end up on
+      // screen, not this now-superseded one, no matter which resolves
+      // first. Silently discard rather than overwrite.
+      if (requestId !== graphRequestIdRef.current) return;
       setEntities(newEntities);
       setThreads(newThreads);
       setSelectedEntityId((prev) => {
@@ -161,10 +180,11 @@ export default function App() {
         return newEntities.length > 0 ? newEntities[0].id : null;
       });
     } catch (err) {
+      if (requestId !== graphRequestIdRef.current) return;
       console.error(err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (requestId === graphRequestIdRef.current) setLoading(false);
     }
   }, [activeCaseId, currentUser, showRejected]);
 
