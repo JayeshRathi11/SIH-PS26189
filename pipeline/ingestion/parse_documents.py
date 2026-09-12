@@ -4,14 +4,15 @@ from pathlib import Path
 # Add project root directory to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-import io
 import os
 import json
 import re
+import time
 import zipfile
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any
 import pandas as pd
+import requests
 
 from pipeline.config import (
     BASE_DIR, DATA_DIR, RAW_TEXT_DIR, GROUND_TRUTH_DIR, 
@@ -80,62 +81,127 @@ def extract_text_from_pdf(pdf_path) -> str:
         print(f"[PDF Extractor Error] Failed to read {pdf_path}: {e}")
         return ""
 
-# Lazily constructed and reused across calls within the same process --
-# these load real model weights (downloaded from HF Hub on first use), so
-# building a fresh RecognitionPredictor/DetectionPredictor per uploaded
-# image would repeat that cost on every single webcam capture or scanned
-# upload. Populated on first call to extract_text_from_image().
-_OCR_RECOGNITION_PREDICTOR = None
-_OCR_DETECTION_PREDICTOR = None
+# Sarvam Document AI (Digitise) config -- see pipeline/requirements.txt.
+# Replaces the earlier Surya OCR integration: a direct accuracy comparison
+# on real handwritten test data showed Sarvam correctly reading names Surya
+# garbled (e.g. "Devendra Solanki" -> "Demudra Solanki" under Surya).
+#
+# Unlike Surya (a one-time local model download, then pure in-process
+# inference), every call here is a LIVE network round-trip -- submit, then
+# poll status, then fetch results -- so every request gets an explicit
+# timeout. A slow or hung Sarvam call must only ever fail the ONE upload
+# request it belongs to, never hang the shared backend process: this
+# function raises a plain, catchable exception on any failure (bad key,
+# network error, timeout, malformed response) instead of hanging or
+# swallowing the error, and its only caller (_extract_text_from_upload() in
+# backend/routers/pipeline.py) already catches per-file exceptions and
+# skips just that one file (see upload_case_document()'s try/except around
+# each uploaded file) -- this function participates in that existing
+# contract rather than needing a new one.
+SARVAM_API_BASE = "https://api.sarvam.ai/doc-ai/v1"
+SARVAM_SUBMIT_TIMEOUT_SECONDS = (10, 30)     # (connect, read) for the upload POST
+SARVAM_STATUS_TIMEOUT_SECONDS = (10, 15)     # (connect, read) per status/result GET
+SARVAM_POLL_INTERVAL_SECONDS = 3             # Doc AI has no SDK wait_until_complete(); docs' own examples poll every 3-5s
+SARVAM_POLL_CEILING_SECONDS = 90             # hard ceiling -- single-page docs "typically finish in seconds" per Sarvam's docs
+SARVAM_TERMINAL_STATUSES = {"completed", "partially_completed", "failed", "rejected"}
 
 def extract_text_from_image(image_bytes_or_path) -> str:
     """
-    Extracts text from a photographed/scanned document image via Surya OCR
-    (see pipeline/requirements.txt) -- this is what a webcam-captured page
-    or a directly-uploaded .jpg/.png runs through (see backend/routers/
-    pipeline.py's SUPPORTED_UPLOAD_EXTENSIONS / _extract_text_from_upload()).
-    Same pattern as extract_text_from_pdf above: raises a clear error if the
-    package isn't installed rather than silently returning empty text.
-    Accepts raw bytes, a file-like object, or a filesystem path.
+    Extracts text from a photographed/scanned document image via Sarvam AI's
+    Document AI Digitise API (see pipeline/requirements.txt) -- this is what
+    a webcam-captured page or a directly-uploaded .jpg/.png runs through
+    (see backend/routers/pipeline.py's SUPPORTED_UPLOAD_EXTENSIONS /
+    _extract_text_from_upload()). Same pattern as extract_text_from_pdf
+    above: raises a clear, catchable error rather than silently returning
+    empty text. Accepts raw bytes, a file-like object, or a filesystem path.
 
-    Pinned to surya-ocr==0.14.7 (see pipeline/requirements.txt) rather than
-    the current latest release: newer Surya versions (0.20+) moved to a
-    served-model architecture that spawns a vLLM server in Docker on a
-    machine with an NVIDIA GPU (or requires a separately-installed native
-    llama-server binary otherwise) -- neither is available on this app's
-    actual deployment target (a plain Render web service, no Docker socket,
-    no GPU), so that architecture can't run there at all. 0.14.7 is the
-    last release using the classic in-process RecognitionPredictor/
-    DetectionPredictor pair (plain `transformers` models, CPU-friendly),
-    which matches how every other extractor in this file already runs.
+    Uses plain `requests` rather than the official `sarvamai` SDK -- the
+    Digitise flow is one multipart POST plus two polling GETs, and doing it
+    directly keeps every timeout explicit and auditable here rather than
+    trusting an SDK default we haven't verified.
     """
-    try:
-        from PIL import Image
-        from surya.recognition import RecognitionPredictor
-        from surya.detection import DetectionPredictor
-    except ImportError as e:
+    api_key = os.getenv("SARVAM_API_KEY")
+    if not api_key:
         raise RuntimeError(
-            "Image OCR requires the 'surya-ocr' package. Install it with "
-            "'pip install surya-ocr==0.14.7' (already listed in pipeline/requirements.txt)."
-        ) from e
+            "Image OCR requires the SARVAM_API_KEY environment variable to be set "
+            "(see .env.example -- get a key from https://dashboard.sarvam.ai)."
+        )
 
-    global _OCR_RECOGNITION_PREDICTOR, _OCR_DETECTION_PREDICTOR
-    if _OCR_RECOGNITION_PREDICTOR is None:
-        _OCR_RECOGNITION_PREDICTOR = RecognitionPredictor()
-        _OCR_DETECTION_PREDICTOR = DetectionPredictor()
+    if isinstance(image_bytes_or_path, (bytes, bytearray)):
+        raw_bytes = bytes(image_bytes_or_path)
+    else:
+        with open(image_bytes_or_path, "rb") as f:
+            raw_bytes = f.read()
+
+    headers = {"api-subscription-key": api_key}
 
     try:
-        if isinstance(image_bytes_or_path, (bytes, bytearray)):
-            image = Image.open(io.BytesIO(image_bytes_or_path)).convert("RGB")
-        else:
-            image = Image.open(image_bytes_or_path).convert("RGB")
+        submit_resp = requests.post(
+            f"{SARVAM_API_BASE}/job/digitise",
+            headers=headers,
+            files={"file": ("document.jpg", raw_bytes, "image/jpeg")},
+            data={"output_format": "md"},
+            timeout=SARVAM_SUBMIT_TIMEOUT_SECONDS,
+        )
+        submit_resp.raise_for_status()
+        job = submit_resp.json()
+        job_id = job["job_id"]
+        status = job.get("status", "")
 
-        predictions = _OCR_RECOGNITION_PREDICTOR([image], det_predictor=_OCR_DETECTION_PREDICTOR)
-        lines = [line.text for line in predictions[0].text_lines]
-        return "\n".join(lines)
+        deadline = time.monotonic() + SARVAM_POLL_CEILING_SECONDS
+        while status not in SARVAM_TERMINAL_STATUSES:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Sarvam digitise job {job_id} did not reach a terminal status "
+                    f"within {SARVAM_POLL_CEILING_SECONDS}s"
+                )
+            time.sleep(SARVAM_POLL_INTERVAL_SECONDS)
+            status_resp = requests.get(
+                f"{SARVAM_API_BASE}/job/{job_id}/status",
+                headers=headers,
+                timeout=SARVAM_STATUS_TIMEOUT_SECONDS,
+            )
+            status_resp.raise_for_status()
+            status = status_resp.json().get("status", "")
+
+        if status in ("failed", "rejected"):
+            raise RuntimeError(f"Sarvam digitise job {job_id} ended with status '{status}'")
+
+        results_resp = requests.get(
+            f"{SARVAM_API_BASE}/job/{job_id}/results",
+            headers=headers,
+            params={"format": "json"},
+            timeout=SARVAM_STATUS_TIMEOUT_SECONDS,
+        )
+        results_resp.raise_for_status()
+        results = results_resp.json()
+
+        # The actual live response shape differs from what Sarvam's own docs
+        # example shows (a single page.content string) -- verified directly
+        # against the real API: each page is a list of `blocks`, each with
+        # its own `text` and a `reading_order`. Sort by reading_order so
+        # multi-column / multi-block pages come out in the right sequence
+        # rather than in whatever order the API happens to list them.
+        pages_text = []
+        for doc in results.get("documents", []):
+            for page in doc.get("pages", []):
+                blocks = sorted(page.get("blocks", []), key=lambda b: b.get("reading_order") or 0)
+                block_texts = [(b.get("text") or "").strip() for b in blocks]
+                page_text = "\n".join(t for t in block_texts if t)
+                if page_text:
+                    pages_text.append(page_text)
+        return "\n\n".join(pages_text)
+
     except Exception as e:
-        print(f"[Image OCR Error] Failed to OCR image: {e}")
-        return ""
+        # Every failure mode (network error, timeout, HTTP error, malformed
+        # response) funnels through here as one plain exception. Deliberately
+        # re-raised, not swallowed into "" -- the caller's per-file try/except
+        # already isolates this to one skipped file with a clear reason
+        # (see upload_case_document() in backend/routers/pipeline.py), and a
+        # descriptive message there is far more useful to the uploading
+        # officer than a silent empty result.
+        print(f"[Sarvam OCR Error] Failed to digitise image: {e}")
+        raise RuntimeError(f"Sarvam OCR failed: {e}") from e
 
 def import_and_prepare_dataset():
     """
