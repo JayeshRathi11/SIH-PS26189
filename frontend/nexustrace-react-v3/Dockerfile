@@ -31,7 +31,11 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # like Render where backend+frontend are separate services with their own
 # public URLs -- there you just set BACKEND_URL to the backend service's
 # real URL as an env var, no rebuild required.
-RUN mkdir -p /etc/nginx/templates && printf 'server {\n\
+RUN mkdir -p /etc/nginx/templates && printf 'map $http_upgrade $connection_upgrade {\n\
+    default upgrade;\n\
+    "" close;\n\
+}\n\
+server {\n\
     listen 80;\n\
     client_max_body_size 50M;\n\
     location / {\n\
@@ -42,6 +46,9 @@ RUN mkdir -p /etc/nginx/templates && printf 'server {\n\
     location /api/ {\n\
         proxy_pass ${BACKEND_URL}/;\n\
         proxy_ssl_server_name on;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Upgrade $http_upgrade;\n\
+        proxy_set_header Connection $connection_upgrade;\n\
         proxy_set_header Host $proxy_host;\n\
         proxy_set_header X-Real-IP $remote_addr;\n\
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\

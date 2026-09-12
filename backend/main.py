@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import os
+import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables from .env before anything else reads them
@@ -13,7 +14,8 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db import init_db
-from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier, audit, cases
+from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier, audit, cases, ws
+from backend.ws_manager import manager
 
 app = FastAPI(
     title="NexusTrace API",
@@ -51,6 +53,14 @@ app.include_router(pipeline.router)
 app.include_router(evaluation.router)
 app.include_router(audit.router)
 app.include_router(cases.router)
+app.include_router(ws.router)
+
+# The pipeline's background tasks run on a worker thread, not this event
+# loop -- ws_manager.broadcast() needs a live loop reference to hand
+# outbound WebSocket sends back to from that thread (see ws_manager.py).
+@app.on_event("startup")
+async def _capture_event_loop_for_ws():
+    manager.loop = asyncio.get_running_loop()
 
 @app.get("/")
 def root():

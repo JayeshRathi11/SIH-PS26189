@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { fetchAuditLogs, verifyAuditChain } from '../api/client';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { fetchAuditLogs, verifyAuditChain, openCaseLiveSync } from '../api/client';
 
 const PAGE_SIZE = 10;
 
@@ -43,35 +43,51 @@ export default function AuditLogsPage({ currentUser }) {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      setForbidden(false);
-      try {
-        // Pull a generous window of entries once, and page through it
-        // client-side -- the ledger's own endpoint only takes a flat
-        // `limit`, not skip/offset, so 10-at-a-time navigation happens here.
-        const data = await fetchAuditLogs(0, 500);
-        if (isMounted) {
-          setEntries(Array.isArray(data) ? data : []);
-          setPage(0);
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        if (err.message && err.message.includes('403')) {
-          setForbidden(true);
-        } else {
-          setError(err.message || 'Failed to load audit log.');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+  const loadAuditLog = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    setError(null);
+    setForbidden(false);
+    try {
+      // Pull a generous window of entries once, and page through it
+      // client-side -- the ledger's own endpoint only takes a flat
+      // `limit`, not skip/offset, so 10-at-a-time navigation happens here.
+      const data = await fetchAuditLogs(0, 500);
+      setEntries(Array.isArray(data) ? data : []);
+      if (!silent) setPage(0);
+    } catch (err) {
+      if (err.message && err.message.includes('403')) {
+        setForbidden(true);
+      } else {
+        setError(err.message || 'Failed to load audit log.');
       }
-    };
-    load();
-    return () => { isMounted = false; };
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAuditLog();
+  }, [loadAuditLog]);
+
+  // Live sync -- every log_audit() write on the backend (see
+  // backend/routers/auth.py) broadcasts AUDIT_LOG_CREATED on the same
+  // domain=None "All Domains" channel FEEDBACK_SUBMITTED already uses for
+  // its no-domain case. Audit entries aren't case-scoped, so this page
+  // listens with domain=null (same as openCaseLiveSync(null, ...) used
+  // for the master graph view) rather than any one case's channel. A
+  // silent reload avoids flashing the "Loading..." state / resetting the
+  // officer's current page out from under them on every new entry.
+  useEffect(() => {
+    if (!currentUser) return;
+    const ws = openCaseLiveSync(null, (event) => {
+      if (event?.type === 'AUDIT_LOG_CREATED') {
+        loadAuditLog({ silent: true });
+      }
+    });
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [currentUser, loadAuditLog]);
 
   const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   const pageEntries = useMemo(

@@ -5,6 +5,27 @@ from sqlalchemy.orm import Session
 
 from backend.db import get_db, CaseRecord, UserRole, User
 from backend.routers.auth import get_current_user, require_role, log_audit
+from backend.ws_manager import manager
+from pipeline.config import DOMAINS
+
+# Cases and domains are different identifier spaces: the 10 pre-seeded demo
+# cases use ids like "case-3" while entities/relationships (and therefore
+# every WebSocket subscription -- see openCaseLiveSync in the frontend and
+# backend/routers/ws.py) key off domain strings like "03_cyber_financial_
+# fraud". A case an officer creates fresh uses its raw domain key as its id
+# directly (see CaseRecord's docstring below), so it needs no translation.
+# This recovers the right broadcast domain for a given case id without
+# hardcoding a second, parallel case->domain table (the frontend already
+# has one -- CASE_TO_DOMAIN_MAP in api/client.js -- built the same way).
+_CASE_NUM_TO_DOMAIN = {meta["id"]: key for key, meta in DOMAINS.items()}
+
+
+def _resolve_case_domain(case_id: str) -> Optional[str]:
+    if case_id in DOMAINS:
+        return case_id
+    if case_id and case_id.startswith("case-"):
+        return _CASE_NUM_TO_DOMAIN.get(case_id.split("-", 1)[1].zfill(2))
+    return None
 
 # Persists the case registry that, before this router existed, lived only
 # in the React app's local state -- a case created via "+ Add New Case",
@@ -97,6 +118,7 @@ def create_case(
             db, action="CASE_CREATE", username=current_user.username, user_id=current_user.id,
             resource_type="CASE", resource_id=req.id, details=f"Re-registered case '{req.title}'",
         )
+        manager.broadcast(_resolve_case_domain(req.id), "CASE_UPDATED", case_id=req.id, title=req.title)
         return _serialize(existing)
 
     max_order = db.query(CaseRecord).count()
@@ -116,6 +138,7 @@ def create_case(
         db, action="CASE_CREATE", username=current_user.username, user_id=current_user.id,
         resource_type="CASE", resource_id=req.id, details=f"Registered new case '{req.title}'",
     )
+    manager.broadcast(_resolve_case_domain(req.id), "CASE_CREATED", case_id=req.id, title=req.title)
     return _serialize(rec)
 
 
@@ -152,6 +175,7 @@ def update_case(
         )
 
     db.commit()
+    manager.broadcast(_resolve_case_domain(case_id), "CASE_UPDATED", case_id=case_id, archived=rec.archived, tag=rec.tag)
     return _serialize(rec)
 
 
@@ -181,4 +205,5 @@ def delete_case(
         resource_type="CASE", resource_id=case_id,
         details=f"Removed case '{rec.title}' from the sidebar (soft-delete; underlying domain data untouched)",
     )
+    manager.broadcast(_resolve_case_domain(case_id), "CASE_DELETED", case_id=case_id)
     return {"status": "deleted", "id": case_id}

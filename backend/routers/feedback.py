@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.db import get_db, InvestigatorFeedback, EntityRecord, RelationshipRecord, UserRole, User
 from fastapi import Request
 from backend.routers.auth import get_current_user, require_role, log_audit, get_client_ip
+from backend.ws_manager import manager
 from pipeline.graph.neo4j_client import Neo4jClient
 
 router = APIRouter(prefix="/graph", tags=["Human-in-the-Loop Feedback"])
@@ -44,6 +45,8 @@ def submit_feedback(
 
     updated_status = "ACTIVE"
     target_identifier = fb_req.target_id or f"{fb_req.source_id}->{fb_req.target_id}"
+    entity = None
+    rel = None
 
     if fb_req.target_type.upper() == "ENTITY":
         entity = db.query(EntityRecord).filter(EntityRecord.id == fb_req.target_id).first()
@@ -124,6 +127,19 @@ def submit_feedback(
     )
 
     neo4j.close()
+
+    # Live-sync this verdict to anyone with the affected case's corkboard
+    # open -- an entity can span several domains (the resolver merges
+    # shared entities across cases), so notify each one it belongs to;
+    # a relationship belongs to exactly one.
+    notify_domains = (entity.domains or []) if entity else ([rel.domain] if (rel and rel.domain) else [])
+    if notify_domains:
+        for d in notify_domains:
+            manager.broadcast(d, "FEEDBACK_SUBMITTED", target_type=fb_req.target_type.upper(),
+                               target_id=target_identifier, verdict=fb_req.verdict.upper())
+    else:
+        manager.broadcast(None, "FEEDBACK_SUBMITTED", target_type=fb_req.target_type.upper(),
+                           target_id=target_identifier, verdict=fb_req.verdict.upper())
 
     return FeedbackResponse(
         feedback_id=fb_entry.id,

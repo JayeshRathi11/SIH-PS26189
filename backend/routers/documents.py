@@ -29,7 +29,8 @@ def list_documents(domain: Optional[str] = Query(None), current_user: User = Dep
             doc_type=d.get("doc_type", "FIR"),
             domain=d.get("domain", ""),
             text=d.get("text", ""),
-            source_file=d.get("source_file", "")
+            source_file=d.get("source_file", ""),
+            sha256_hash=d.get("sha256_hash")
         )
         for d in docs
     ]
@@ -44,6 +45,7 @@ def get_document_by_id(doc_id: str, current_user: User = Depends(get_current_use
                 doc_type=d.get("doc_type", "FIR"),
                 domain=d.get("domain", ""),
                 text=d.get("text", ""),
-                source_file=d.get("source_file", "")
+                source_file=d.get("source_file", ""),
+                sha256_hash=d.get("sha256_hash")
             )
     raise HTTPException(status_code=404, detail=f"Document with ID '{doc_id}' not found.")

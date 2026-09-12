@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
@@ -6,7 +7,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from backend.db import get_db, User, AuditLog, UserRole, verify_password, hash_password, compute_audit_hash, GENESIS_HASH
+from backend.db import get_db, User, AuditLog, RevokedToken, UserRole, verify_password, hash_password, compute_audit_hash, GENESIS_HASH
+from backend.ws_manager import manager
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
@@ -61,7 +63,11 @@ class UserProfileResponse(BaseModel):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    # jti (JWT ID) gives every issued token a unique identity, independent
+    # of its payload -- logout (see below) blacklists this specific token
+    # by jti rather than needing to touch/rotate anything tied to the user
+    # account itself, so it doesn't affect that user's other active sessions.
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -108,6 +114,12 @@ def log_audit(db: Session, action: str, username: str = None, user_id: str = Non
         )
         db.add(log)
         db.commit()
+        # Live-sync -- not domain-scoped like case/entity events, so this
+        # broadcasts on the same "All Domains" channel (domain=None) that
+        # FEEDBACK_SUBMITTED already uses for its no-domain case (see
+        # backend/routers/feedback.py); AuditLogsPage.jsx is the only
+        # listener that watches for this specific event type.
+        manager.broadcast(None, "AUDIT_LOG_CREATED", action=action, username=username)
     except Exception as e:
         print(f"[AuditLog Error]: {e}")
 
@@ -123,9 +135,16 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        jti: str = payload.get("jti")
         if username is None:
             raise credentials_exception
     except JWTError:
+        raise credentials_exception
+
+    # Tokens issued before the jti/logout blacklist existed simply have no
+    # jti claim and skip this check -- they're still only valid until
+    # their original exp, same as before.
+    if jti and db.query(RevokedToken).filter(RevokedToken.jti == jti).first():
         raise credentials_exception
 
     user = db.query(User).filter(User.username == username).first()
@@ -213,6 +232,45 @@ def get_me(current_user: User = Depends(get_current_user)):
         full_name=current_user.full_name,
         created_at=current_user.created_at
     )
+
+@router.post("/logout")
+def logout(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Ends this specific session server-side, not just client-side. See
+    RevokedToken in backend/db.py: this token's jti gets blacklisted, so
+    it's rejected by get_current_user() for the rest of its 24h lifetime
+    even if it's replayed after the browser clears it -- previously
+    logout was purely a client-side token-forget with no backend route
+    behind it at all (the frontend called this exact path and got a
+    silent 404 every time).
+    """
+    client_ip = get_client_ip(request)
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+    except JWTError:
+        jti, exp = None, None
+
+    if jti and not db.query(RevokedToken).filter(RevokedToken.jti == jti).first():
+        db.add(RevokedToken(
+            jti=jti,
+            username=current_user.username,
+            expires_at=datetime.utcfromtimestamp(exp) if exp else None
+        ))
+        db.commit()
+
+    log_audit(
+        db, action="LOGOUT", username=current_user.username, user_id=current_user.id,
+        ip_address=client_ip
+    )
+
+    return {"status": "logged_out", "username": current_user.username}
 
 @router.get("/audit-logs")
 def get_audit_logs(limit: int = 50, current_user: User = Depends(require_role([UserRole.OFFICER_IN_CHARGE.value, UserRole.AUDITOR.value])), db: Session = Depends(get_db)):

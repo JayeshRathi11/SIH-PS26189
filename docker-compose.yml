@@ -1,8 +1,37 @@
 version: '3.8'
 
 services:
-  # The actual API. Talks to PostgreSQL on Supabase (external, managed --
-  # DATABASE_URL in .env), not a local Postgres container.
+  # Local, disposable Postgres for development. This is what DATABASE_URL
+  # in .env.example points at (localhost:5432) -- the backend is normally
+  # run on the host (uvicorn), not in this compose file, so it reaches this
+  # container via the published port, not the compose network. Nothing
+  # here is ever a real credential: these are throwaway local-dev values,
+  # not secrets, which is why they're inline instead of read from .env.
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexustrace-postgres
+    environment:
+      - POSTGRES_USER=nexustrace
+      - POSTGRES_PASSWORD=localdevpassword
+      - POSTGRES_DB=nexustrace_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexustrace -d nexustrace_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # The actual API. For local dev, run this on the host instead (see
+  # docs/HOW_TO_RUN_AND_USE.md) -- .env's localhost-based DATABASE_URL/
+  # NEO4J_URI are written for that. This service exists for running the
+  # full stack containerized (e.g. testing the production-style build);
+  # in that mode it needs the sibling containers' service names instead of
+  # "localhost", which is what the environment: overrides below are for --
+  # they take precedence over the same keys in env_file.
   backend:
     build:
       context: .
@@ -10,6 +39,12 @@ services:
     container_name: nexustrace-backend
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://nexustrace:localdevpassword@postgres:5432/nexustrace_dev
+      - NEO4J_URI=bolt://neo4j:7687
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -31,10 +66,10 @@ services:
 
   # Optional secondary graph mirror -- pipeline/graph/build_graph.py loads
   # into this if it's reachable and silently skips it if not. The app's
-  # real, required data store is PostgreSQL (Supabase, external) via
-  # DATABASE_URL above; this container is not required for anything to
-  # work. Included only for anyone who wants to explore the graph in
-  # Neo4j's own browser console at http://localhost:7474.
+  # real, required data store is the Postgres service above; this
+  # container is not required for anything to work. Included for anyone
+  # who wants to explore the graph in Neo4j's own browser console at
+  # http://localhost:7474.
   neo4j:
     image: neo4j:5-community
     container_name: nexustrace-neo4j
@@ -50,5 +85,6 @@ services:
       - neo4j_logs:/logs
 
 volumes:
+  postgres_data:
   neo4j_data:
   neo4j_logs:

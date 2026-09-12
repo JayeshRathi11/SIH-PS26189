@@ -3,6 +3,7 @@ import uuid
 import hashlib
 import json as _json
 from enum import Enum
+from urllib.parse import urlparse
 import bcrypt
 from datetime import datetime
 from sqlalchemy import create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, JSON, Enum as SQLEnum
@@ -18,6 +19,26 @@ _engine_kwargs = {"connect_args": {"check_same_thread": False}} if DATABASE_URL.
 engine = create_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Hosts docker-compose / .env.example point local dev at. Anything else
+# (a Supabase pooler hostname, an onrender.com box, etc) gets flagged loud --
+# this is the check that would have caught tonight's .env pointed at prod.
+_LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "postgres", "db"}
+
+def _print_startup_db_banner():
+    if DATABASE_URL.startswith("sqlite"):
+        host, db_name, is_local = "sqlite (local file)", DATABASE_URL.split("///")[-1], True
+    else:
+        parsed = urlparse(DATABASE_URL)
+        host = parsed.hostname or "unknown-host"
+        db_name = (parsed.path or "").lstrip("/") or "unknown-db"
+        is_local = host.lower() in _LOCAL_DB_HOSTS
+    label = "LOCAL" if is_local else "!!! NON-LOCAL / REMOTE DATABASE !!!"
+    line = "#" * 72
+    print(line)
+    print(f"# [STARTUP] DATABASE TARGET: {label}")
+    print(f"# [STARTUP] Connected to: {host}/{db_name}")
+    print(line)
 
 def hash_password(password: str) -> str:
     """Standard bcrypt password hashing."""
@@ -112,6 +133,27 @@ class AuditLog(Base):
     prev_hash = Column(String, nullable=True)
     entry_hash = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+class RevokedToken(Base):
+    """
+    Server-side logout for an otherwise fully stateless JWT setup (see
+    ACCESS_TOKEN_EXPIRE_MINUTES / create_access_token() in backend/routers/
+    auth.py). Without this, POST /auth/logout could only ever mean "the
+    browser forgot its token" -- the token itself would stay valid to
+    replay against the API for the rest of its 24h lifetime even after
+    the officer signed out. Every token now carries a unique jti claim;
+    logging out records that jti here, and get_current_user() rejects any
+    token whose jti shows up in this table, regardless of its exp.
+    """
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True)
+    username = Column(String, index=True, nullable=True)
+    revoked_at = Column(DateTime, default=datetime.utcnow)
+    # The token's own expiry, kept only so a future cleanup job could prune
+    # rows for tokens that would have expired naturally anyway -- nothing
+    # currently reads this column.
+    expires_at = Column(DateTime, nullable=True)
 
 class EvidenceLedgerRecord(Base):
     __tablename__ = "evidence_ledger"
@@ -373,6 +415,7 @@ def migrate_columns():
                 pass
 
 def init_db():
+    _print_startup_db_banner()
     Base.metadata.create_all(bind=engine)
     migrate_columns()
     db = SessionLocal()

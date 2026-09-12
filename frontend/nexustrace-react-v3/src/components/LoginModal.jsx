@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { loginUser, logoutUser } from '../api/client';
+import { loginUser } from '../api/client';
 
 export default function LoginModal({ isOpen, onClose, currentUser, onUserChange, onLogout }) {
   if (!isOpen) return null;
@@ -40,18 +40,17 @@ export default function LoginModal({ isOpen, onClose, currentUser, onUserChange,
     setPassword(u.pass);
   };
 
+  // Delegates to App.jsx's handleLogout -- the single place that calls the
+  // audited POST /auth/logout (see App.jsx) -- rather than duplicating that
+  // call here, so this modal's logout button and the sidebar's stay in sync.
   const handleLogout = async () => {
     setLoggingOut(true);
     setError('');
     try {
-      await logoutUser();
-    } catch (err) {
-      // logoutUser() already clears the local token even if the server call
-      // fails (e.g. offline) -- proceed with the client-side sign-out either way.
+      if (onLogout) await onLogout();
+      else onUserChange(null);
     } finally {
       setLoggingOut(false);
-      if (onLogout) onLogout();
-      else onUserChange(null);
       onClose();
     }
   };

@@ -1,5 +1,22 @@
 import { adaptGraphResponse } from './adapters';
 
+// ----------------------------------------------------
+// Local-vs-deployed startup banner. window.location.host is the actual
+// origin the browser loaded this page from -- it can't drift out of sync
+// with reality the way a separate config value could, which is exactly
+// the kind of mismatch (a local test silently talking to a remote
+// backend) this is here to make impossible to miss.
+// ----------------------------------------------------
+(function logConnectionTarget() {
+  const host = window.location.host;
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+  const label = isLocal ? 'LOCAL' : '!!! NON-LOCAL / DEPLOYED !!!';
+  console.log(
+    `%c[STARTUP] Frontend origin: ${host}  (${label})  -- API/WS calls go to same-origin /api/*`,
+    `background:${isLocal ? '#0a6b3a' : '#b00020'}; color:#fff; font-weight:bold; padding:2px 6px;`
+  );
+})();
+
 // FastAPI validation errors (HTTP 422) return `detail` as an ARRAY of
 // {loc, msg, type} objects, not a string -- every other error path here
 // (400/403/etc) returns a plain string `detail`. Interpolating the array
@@ -460,8 +477,11 @@ export async function downloadDossier(entityId, fileName) {
 // ----------------------------------------------------
 // Security & Audit Logs API
 // ----------------------------------------------------
+// cache: 'no-store' for the same reason as verifyAuditChain() below -- an
+// evidentiary ledger view must never show a browser-cached, potentially
+// stale copy of itself.
 export async function fetchAuditLogs(skip = 0, limit = 50) {
-  const response = await fetch(`/api/audit/log?limit=${limit}`, { headers: getAuthHeaders() });
+  const response = await fetch(`/api/audit/log?limit=${limit}`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to fetch audit logs: ${response.status} ${response.statusText}`);
   }
@@ -472,10 +492,60 @@ export async function fetchAuditLogs(skip = 0, limit = 50) {
 // the previous row's hash and checks it against what's actually stored --
 // this is what proves the chain tamper-EVIDENT, not just tamper-resistant.
 // AUDITOR / OFFICER_IN_CHARGE only (backend-enforced).
+//
+// cache: 'no-store' is deliberate, not defensive boilerplate -- this is a
+// pass/fail security check, so every click must hit the network and get a
+// genuinely fresh answer. fetch()'s default cache mode ('default') is
+// otherwise free to satisfy a repeat GET to this exact same URL from the
+// browser's HTTP cache instead of re-querying the server, which is exactly
+// what would make a real tamper look like a stale PASS until something
+// (e.g. a full page reload) happens to force a network round-trip.
 export async function verifyAuditChain() {
-  const response = await fetch('/api/audit/verify', { headers: getAuthHeaders() });
+  const response = await fetch('/api/audit/verify', { headers: getAuthHeaders(), cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to verify audit chain: ${response.status} ${response.statusText}`);
   }
   return await response.json();
+}
+
+// ----------------------------------------------------
+// Case Live-Sync WebSocket
+// ----------------------------------------------------
+// Pushes an event whenever the watched case's entities/relationships/
+// evidence change server-side (pipeline completion, investigator
+// feedback) so the board can pick it up without a manual page reload.
+// Scoped to case-level data only -- see backend/routers/ws.py. Returns
+// the raw WebSocket (or null if there's no session yet) so the caller
+// owns its lifecycle and can close() it on cleanup.
+export function openCaseLiveSync(caseId, onEvent) {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  const domain = CASE_TO_DOMAIN_MAP[caseId] !== undefined ? CASE_TO_DOMAIN_MAP[caseId] : caseId;
+  const params = new URLSearchParams({ token });
+  if (domain) params.append('domain', domain);
+
+  // Native WebSocket can't set an Authorization header on the handshake,
+  // so the token rides in the query string instead (see backend/routers/
+  // ws.py's _authenticate_ws_token).
+  //
+  // Same-origin /api/ws/case, mirroring every REST call in this file --
+  // the Vite dev proxy (vite.config.js, ws: true) and the production Nginx
+  // config (frontend/nexustrace-react-v3/Dockerfile, Upgrade/Connection
+  // headers) both forward this path to the real backend, so this never
+  // needs a hardcoded host and can't silently point at the wrong
+  // environment the way a literal localhost:8000 would once deployed.
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/ws/case?${params.toString()}`);
+
+  ws.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data));
+    } catch (err) {
+      console.warn('[Live Sync] Malformed event', err);
+    }
+  };
+  ws.onerror = (err) => console.warn('[Live Sync] Connection error', err);
+
+  return ws;
 }

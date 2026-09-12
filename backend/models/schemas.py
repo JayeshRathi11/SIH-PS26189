@@ -10,6 +10,14 @@ class EntityNode(BaseModel):
     domains: List[str] = []
     hub_score: Optional[float] = 0.0
     community_cluster: Optional[int] = 0
+    # Persisted investigator feedback (see POST /graph/feedback). Without
+    # these declared here, FastAPI's response_model silently drops them
+    # from the JSON even though GraphService.get_full_graph() puts them on
+    # every node -- the confirm/reject state was being written to the DB
+    # correctly but never actually reaching the frontend on a fresh
+    # /graph fetch, only surviving in-session via local React state.
+    verified_by_officer: Optional[bool] = False
+    status: Optional[str] = "ACTIVE"
 
 class RelationshipEdge(BaseModel):
     source: str
@@ -21,6 +29,9 @@ class RelationshipEdge(BaseModel):
     confidence: Optional[float] = 0.9
     domain: str
     evidence: Optional[str] = ""
+    # Same persisted-feedback gap as EntityNode above, for edges.
+    verified_by_officer: Optional[bool] = False
+    status: Optional[str] = "ACTIVE"
 
 class GraphDataResponse(BaseModel):
     nodes: List[EntityNode]
@@ -44,6 +55,13 @@ class DocumentResponse(BaseModel):
     domain: str
     text: str
     source_file: Optional[str] = ""
+    # Written into parsed_documents.jsonl at upload time (see
+    # accepted_files/doc_record in backend/routers/pipeline.py's
+    # upload_case_document()) but never read back out by documents.py's
+    # handlers below -- DetailPanel.jsx and DossiersPage.jsx both already
+    # conditionally render a "SHA: ..." line keyed on doc.sha256_hash, so
+    # it's been silently absent from every document card, not just unused.
+    sha256_hash: Optional[str] = None
 
 class PipelineRunRequest(BaseModel):
     raw_text: Optional[str] = Field(None, description="Raw text document input for live extraction")

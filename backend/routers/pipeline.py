@@ -4,7 +4,7 @@ import uuid
 import hashlib
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from backend.models.schemas import PipelineJobResponse, PipelineRunRequest
 from pipeline.extraction.llm_extractor import LLMExtractor
@@ -13,14 +13,17 @@ from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
 from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf
 from backend.db import get_db, JobRecord, SessionLocal, User, UserRole
-from backend.routers.auth import require_role, get_current_user, log_audit
+from backend.routers.auth import require_role, get_current_user, log_audit, get_client_ip
+from backend.ws_manager import manager
 from pipeline.run_pipeline import run_pipeline_end_to_end
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Execution"])
 
 from pipeline.resolution.incremental_resolver import ingest_new_case_incrementally
 
-def execute_pipeline_task(job_id: str, domain: str = None, raw_text: str = None):
+def execute_pipeline_task(job_id: str, domain: str = None, raw_text: str = None,
+                           triggered_by_username: str = None, triggered_by_user_id: str = None,
+                           triggered_from_ip: str = None):
     db = SessionLocal()
     try:
         if raw_text:
@@ -58,18 +61,39 @@ def execute_pipeline_task(job_id: str, domain: str = None, raw_text: str = None)
             job.total_relationships = total_r
             job.completed_at = datetime.utcnow()
             db.commit()
+
+        # This background task is itself the action the WebSocket event
+        # below announces -- the request that triggered it (/pipeline/run
+        # or /pipeline/upload) already logged PIPELINE_RUN_TRIGGERED, but
+        # completion happens later on this worker thread, outside any
+        # request. Without this, a live-synced graph update would have no
+        # matching audit entry, breaking the "every action is logged"
+        # guarantee for anything that finishes asynchronously.
+        log_audit(
+            db, action="PIPELINE_COMPLETED", username=triggered_by_username, user_id=triggered_by_user_id,
+            resource_type="JOB", resource_id=job_id, ip_address=triggered_from_ip,
+            details=f"domain={domain}, total_entities={total_e}, total_relationships={total_r} (broadcast over WebSocket)"
+        )
+        manager.broadcast(domain, "PIPELINE_COMPLETED", job_id=job_id, total_entities=total_e, total_relationships=total_r)
     except Exception as e:
         job = db.query(JobRecord).filter(JobRecord.id == job_id).first()
         if job:
             job.status = "FAILED"
             job.error_message = str(e)
             db.commit()
+        log_audit(
+            db, action="PIPELINE_FAILED", username=triggered_by_username, user_id=triggered_by_user_id,
+            resource_type="JOB", resource_id=job_id, ip_address=triggered_from_ip,
+            details=f"domain={domain}, error={e}", status="FAILED"
+        )
+        manager.broadcast(domain, "PIPELINE_FAILED", job_id=job_id, error=str(e))
     finally:
         db.close()
 
 @router.post("/run", response_model=PipelineJobResponse)
 def trigger_pipeline(
     background_tasks: BackgroundTasks,
+    request: Request,
     request_body: Optional[PipelineRunRequest] = None,
     domain: Optional[str] = Query(None, description="Optional domain key to run"),
     current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
@@ -77,6 +101,7 @@ def trigger_pipeline(
 ):
     target_domain = (request_body.domain if request_body and request_body.domain else domain)
     raw_text = request_body.raw_text if request_body else None
+    client_ip = get_client_ip(request)
 
     job_id = f"JOB_{uuid.uuid4().hex[:8].upper()}"
     job = JobRecord(
@@ -89,12 +114,19 @@ def trigger_pipeline(
     db.commit()
     db.refresh(job)
 
+    # ip_address is what actually distinguishes "the web frontend called
+    # this" from "a script/mobile client hit the API directly" (e.g.
+    # scripts/direct_upload.py) -- action + resource alone look identical
+    # either way, since this route doesn't otherwise care who's calling it.
     log_audit(
         db, action="PIPELINE_RUN_TRIGGERED", username=current_user.username, user_id=current_user.id,
-        resource_type="JOB", resource_id=job_id, details=f"domain={target_domain}"
+        resource_type="JOB", resource_id=job_id, details=f"domain={target_domain}", ip_address=client_ip
     )
 
-    background_tasks.add_task(execute_pipeline_task, job_id, target_domain, raw_text)
+    background_tasks.add_task(
+        execute_pipeline_task, job_id, target_domain, raw_text,
+        current_user.username, current_user.id, client_ip
+    )
 
     return PipelineJobResponse(
         job_id=job.id,
@@ -124,6 +156,7 @@ def _extract_text_from_upload(filename: str, raw_bytes: bytes) -> str:
 @router.post("/upload", response_model=PipelineJobResponse)
 async def upload_case_document(
     background_tasks: BackgroundTasks,
+    request: Request,
     files: List[UploadFile] = File(..., description="One or more FIR / case source documents (.txt, .docx, .pdf)"),
     domain: str = Form(..., description="Target domain / case key these documents belong to"),
     current_user: User = Depends(require_role([UserRole.INVESTIGATOR.value, UserRole.OFFICER_IN_CHARGE.value])),
@@ -203,6 +236,7 @@ async def upload_case_document(
         raise HTTPException(status_code=400, detail=detail)
 
     raw_text = "\n\n".join(combined_parts)
+    client_ip = get_client_ip(request)
 
     job_id = f"JOB_{uuid.uuid4().hex[:8].upper()}"
     job = JobRecord(
@@ -219,19 +253,26 @@ async def upload_case_document(
     # document's own SHA-256 as content_hash -- this is the chain-of-
     # custody record that a document with this exact content entered the
     # system, under this user, at this time, tied into the wider chain.
+    # ip_address is recorded too -- same reasoning as /pipeline/run: it's
+    # what tells apart the web upload form from a script/mobile client
+    # hitting this endpoint directly (e.g. scripts/direct_upload.py).
     for fname, fhash in accepted_files:
         log_audit(
             db, action="DOCUMENT_UPLOADED", username=current_user.username, user_id=current_user.id,
             resource_type="DOCUMENT", resource_id=fname, details=f"domain={domain}, job={job_id}",
-            content_hash=fhash
+            content_hash=fhash, ip_address=client_ip
         )
     if skipped:
         log_audit(
             db, action="DOCUMENT_UPLOAD_SKIPPED", username=current_user.username, user_id=current_user.id,
-            resource_type="DOCUMENT", resource_id=job_id, details="; ".join(skipped), status="PARTIAL"
+            resource_type="DOCUMENT", resource_id=job_id, details="; ".join(skipped), status="PARTIAL",
+            ip_address=client_ip
         )
 
-    background_tasks.add_task(execute_pipeline_task, job_id, domain, raw_text)
+    background_tasks.add_task(
+        execute_pipeline_task, job_id, domain, raw_text,
+        current_user.username, current_user.id, client_ip
+    )
 
     return PipelineJobResponse(
         job_id=job.id,

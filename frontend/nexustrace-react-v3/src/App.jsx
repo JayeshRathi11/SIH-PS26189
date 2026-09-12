@@ -11,7 +11,7 @@ import AnomalyHubPage from './pages/AnomalyHubPage';
 import DossiersPage from './pages/DossiersPage';
 import XaiConsolePage from './pages/XaiConsolePage';
 import AuditLogsPage from './pages/AuditLogsPage';
-import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns, fetchCases, createCaseRecord } from './api/client';
+import { fetchCaseGraph, fetchCurrentUser, fetchSuspiciousPatterns, fetchCases, createCaseRecord, openCaseLiveSync, logoutUser } from './api/client';
 
 const INITIAL_CASES = [
   { id: 'case-all', caseId: 'GLOBAL-MASTER-00', title: 'All Domains (Master View)', entities: '10 Domains', links: 'Resolved Hub', tag: 'Global' },
@@ -167,6 +167,35 @@ export default function App() {
     loadGraph();
   }, [loadGraph]);
 
+  // Live sync -- replaces the old "hit refresh to see it" requirement.
+  // One WebSocket per active case, torn down and reopened whenever the
+  // officer switches cases. A PIPELINE_COMPLETED (new upload finished
+  // extracting) or FEEDBACK_SUBMITTED (a connection got confirmed/
+  // rejected) event re-pulls the graph; a CASE_CREATED/CASE_UPDATED/
+  // CASE_DELETED event (another officer archived, re-tagged, deleted, or
+  // re-registered a case -- see backend/routers/cases.py) refreshes just
+  // the case list/sidebar, since case metadata itself isn't graph data.
+  // Scoped to case data only, same as the backend side (backend/routers/
+  // ws.py) -- nothing else in the app listens on this channel.
+  useEffect(() => {
+    if (!currentUser) return;
+    const ws = openCaseLiveSync(activeCaseId, (event) => {
+      if (event?.type === 'PIPELINE_COMPLETED' || event?.type === 'FEEDBACK_SUBMITTED') {
+        loadGraph();
+        loadCases().catch(() => {});
+      } else if (
+        event?.type === 'CASE_CREATED' ||
+        event?.type === 'CASE_UPDATED' ||
+        event?.type === 'CASE_DELETED'
+      ) {
+        loadCases().catch(() => {});
+      }
+    });
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [activeCaseId, currentUser, loadGraph, loadCases]);
+
   const handleDrag = (id, x, y) => {
     setEntities((prev) => prev.map((e) => (e.id === id ? { ...e, x, y } : e)));
   };
@@ -243,7 +272,15 @@ export default function App() {
     setActiveTab('board');
   };
 
-  const handleLogout = () => {
+  // The sidebar's own logout button used to just reset local state here,
+  // never calling the backend -- so it never revoked the JWT server-side
+  // (see RevokedToken in backend/db.py) and never wrote the LOGOUT audit
+  // entry that logoutUser() writes via POST /auth/logout, even though the
+  // session genuinely ended. logoutUser() clears the stored token itself,
+  // even if the request fails (e.g. offline), so this always proceeds to
+  // the client-side sign-out either way.
+  const handleLogout = async () => {
+    await logoutUser();
     setCurrentUser(null);
     setActiveTab('board');
   };

@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 from backend.db import get_db, AuditLog, User, UserRole, GENESIS_HASH, compute_audit_hash
 from backend.routers.auth import require_role
@@ -9,6 +9,7 @@ router = APIRouter(prefix="/audit", tags=["Audit & Chain-of-Custody"])
 
 @router.get("/verify")
 def verify_audit_chain(
+    response: Response,
     current_user: User = Depends(require_role([UserRole.AUDITOR.value, UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)
 ):
@@ -24,7 +25,22 @@ def verify_audit_chain(
     prev_hash no longer matches anything recomputable from what remains.
     Either way, this endpoint pinpoints exactly where the chain first goes
     bad, rather than just reporting a single pass/fail bit.
+
+    Every read below goes through a fresh `Depends(get_db)` session (a new
+    SQLAlchemy Session + a fresh SQLite read transaction per request --
+    verified directly against this app's own engine: a still-open session
+    sees a stale pre-tamper snapshot, but a brand new one, same as what a
+    real request creates, sees a tamper immediately), so there's no stale
+    server-side read to fix here. What DOES need explicitly ruling out is
+    a client/browser (or any intermediary) reusing a cached response for
+    this exact same GET URL instead of hitting the network on every click
+    -- since this result is a pass/fail security assertion, it must never
+    be served from cache, so this is marked uncacheable explicitly rather
+    than relying on the absence of caching headers to mean "don't cache."
     """
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+
     entries = db.query(AuditLog).order_by(AuditLog.timestamp.asc()).all()
 
     if not entries:
@@ -83,12 +99,21 @@ def verify_audit_chain(
 
 @router.get("/log")
 def list_audit_log(
+    response: Response,
     limit: int = Query(100, le=500),
     action: Optional[str] = Query(None, description="Filter to a single action type, e.g. DOSSIER_EXPORTED"),
     current_user: User = Depends(require_role([UserRole.AUDITOR.value, UserRole.OFFICER_IN_CHARGE.value])),
     db: Session = Depends(get_db)
 ):
-    """Read-only listing of the custody chain, newest first -- the Auditor role's primary view."""
+    """
+    Read-only listing of the custody chain, newest first -- the Auditor
+    role's primary view. Same no-cache reasoning as /audit/verify: this is
+    the evidentiary record a tamper investigation depends on, so a stale
+    cached copy is never an acceptable answer, even briefly.
+    """
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+
     q = db.query(AuditLog)
     if action:
         q = q.filter(AuditLog.action == action)
