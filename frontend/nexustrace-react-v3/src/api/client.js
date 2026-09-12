@@ -254,12 +254,19 @@ export async function fetchEvaluationMetrics(caseId) {
     throw new Error(`Failed to fetch evaluation metrics`);
   }
 
+  // No hardcoded fallbacks here -- when the backend has no ground truth for
+  // this domain, entity_precision/recall/f1 come back as null and
+  // ground_truth_matched is false (see backend/routers/evaluation.py). That
+  // must reach EvaluationPanel as real null/false, not get papered over
+  // with old demo-looking numbers, or a case that's genuinely unscored
+  // silently displays as if it scored 94%/90%/92%.
   const data = await response.json();
   return {
-    precision: data.entity_precision ?? 0.94,
-    recall: data.entity_recall ?? 0.90,
-    f1_score: data.entity_f1 ?? 0.92,
-    ground_truth_matched: data.ground_truth_matched ?? true,
+    precision: data.entity_precision,
+    recall: data.entity_recall,
+    f1_score: data.entity_f1,
+    ground_truth_matched: data.ground_truth_matched,
+    message: data.message,
   };
 }
 
