@@ -130,19 +130,46 @@ class LLMExtractor:
         return json.loads(raw_response)
 
     def _call_groq_api(self, doc_text: str) -> Dict[str, Any]:
-        """Calls Groq API using groq SDK if GROQ_API_KEY is present."""
+        """Calls Groq API using groq SDK if GROQ_API_KEY is present.
+
+        Retries once on a 429 (Groq's free/on_demand tier has an 8000
+        tokens-per-minute cap, easily hit by back-to-back document uploads --
+        the error response itself names a short retry-after, typically 2-3s).
+        Without this, a single burst of a few large documents could exhaust
+        this fallback too and drop all the way to the much weaker
+        deterministic extractor for what is really just a few seconds' wait.
+        """
         from groq import Groq
+        import re as _re
+        import time as _time
+        from groq import RateLimitError
+
         client = Groq(api_key=self.groq_key)
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": SYSTEM_EXTRACTION_PROMPT},
-                {"role": "user", "content": f"Document Text:\n{doc_text}"}
-            ],
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"}
-        )
-        raw_response = chat_completion.choices[0].message.content
-        return json.loads(raw_response)
+        # llama-3.3-70b-versatile was removed from Groq's model catalog;
+        # gpt-oss-120b is the current comparable-tier general model,
+        # verified against this exact prompt (including non-English text)
+        # before switching.
+        model = "openai/gpt-oss-120b"
+
+        for attempt in range(2):
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": SYSTEM_EXTRACTION_PROMPT},
+                        {"role": "user", "content": f"Document Text:\n{doc_text}"}
+                    ],
+                    model=model,
+                    response_format={"type": "json_object"}
+                )
+                raw_response = chat_completion.choices[0].message.content
+                return json.loads(raw_response)
+            except RateLimitError as e:
+                if attempt == 1:
+                    raise
+                match = _re.search(r"try again in ([\d.]+)s", str(e))
+                wait_s = float(match.group(1)) if match else 3.0
+                print(f"[LLMExtractor] Groq rate-limited, retrying in {wait_s:.1f}s...")
+                _time.sleep(wait_s + 0.5)
 
     def _deterministic_fallback_extract(self, doc_text: str) -> Dict[str, Any]:
         """

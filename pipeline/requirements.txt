@@ -10,6 +10,11 @@ networkx>=3.0
 scipy>=1.11.0
 neo4j>=5.0.0
 google-genai>=0.1.0
+# Secondary extraction fallback when Gemini is rate-limited/unavailable --
+# LLMExtractor._call_groq_api() imports this lazily. Was referenced in code
+# but never actually listed here, so the "fallback" silently skipped straight
+# to the deterministic regex extractor on every Gemini failure.
+groq>=0.9.0
 requests>=2.28.0
 python-dotenv>=1.0.0
 spacy>=3.5.0
