@@ -126,6 +126,32 @@ export default function DetailPanel({ entity, isOpen, activeCaseId, onFeedbackUp
         )}
       </div>
 
+      {/* Criminal-History Reference Match Badge -- set by the prior-history
+          lookup step in pipeline/resolution/incremental_resolver.py against
+          criminal_history_records. A HIGH CONFIDENCE (phone/vehicle) match
+          reads as a firmer red warning; a name-only POSSIBLE MATCH is
+          softer amber, since it is never auto-confirmed on a name alone. */}
+      {entity.has_prior_history && (() => {
+        const isHighConfidence = (entity.prior_history_summary || '').startsWith('HIGH');
+        const flagColor = isHighConfidence ? 'var(--stamp-red)' : 'var(--tag-amber)';
+        const flagBg = isHighConfidence ? 'var(--stamp-red-bg)' : 'var(--tag-amber-bg)';
+        return (
+          <div style={{ border: `1px solid ${flagColor}`, background: flagBg, borderRadius: '2px', padding: '6px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', fontFamily: 'IBM Plex Mono, monospace', color: flagColor }}>
+              <span style={{ fontSize: '13px' }}>⚠</span>
+              <span style={{ fontWeight: 700, letterSpacing: '0.03em' }}>
+                {isHighConfidence ? 'PRIOR HISTORY MATCH' : 'POSSIBLE PRIOR HISTORY MATCH'}
+              </span>
+            </div>
+            {entity.prior_history_summary && (
+              <div style={{ fontSize: '9.5px', color: 'var(--ink-soft)', marginTop: '4px', lineHeight: '1.4' }}>
+                {entity.prior_history_summary}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Identity Header */}
       <div>
         <h3 style={{ fontSize: '16px', margin: '2px 0 2px' }}>{entity.name}</h3>

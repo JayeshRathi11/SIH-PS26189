@@ -62,7 +62,8 @@ class Neo4jClient:
     def add_entity_node(self, entity_id: str, name: str, entity_type: str, aliases: List[str], domains: List[str],
                          hub_score: float = 0.0, community_cluster: int = 0,
                          verified_by_officer: bool = False, status: str = "ACTIVE",
-                         phone_numbers: Optional[List[str]] = None):
+                         phone_numbers: Optional[List[str]] = None,
+                         has_prior_history: bool = False, prior_history_summary: Optional[str] = None):
         if not self.driver:
             return
 
@@ -82,7 +83,9 @@ class Neo4jClient:
             e.community_cluster = $community_cluster,
             e.verified_by_officer = $verified_by_officer,
             e.status = $status,
-            e.phone_numbers = $phone_numbers
+            e.phone_numbers = $phone_numbers,
+            e.has_prior_history = $has_prior_history,
+            e.prior_history_summary = $prior_history_summary
         """
         with self.driver.session() as session:
             session.run(
@@ -96,7 +99,9 @@ class Neo4jClient:
                 community_cluster=int(community_cluster),
                 verified_by_officer=bool(verified_by_officer),
                 status=status,
-                phone_numbers=phone_numbers or []
+                phone_numbers=phone_numbers or [],
+                has_prior_history=bool(has_prior_history),
+                prior_history_summary=prior_history_summary or ""
             )
 
     def add_relationship_edge(self, source_id: str, target_id: str, rel_type: str, raw_rel_type: str,

@@ -71,6 +71,8 @@ export function adaptGraphResponse(graphData) {
       communityCluster: node.community_cluster || 0,
       verified_by_officer: Boolean(node.verified_by_officer),
       status: node.status || 'ACTIVE',
+      has_prior_history: Boolean(node.has_prior_history),
+      prior_history_summary: node.prior_history_summary || null,
       evidenceText: `Partitioned into Syndicate Community Cluster #${node.community_cluster || 0}. Connected across ${node.domains ? node.domains.length : 1} crime verticals.`,
       source: 'MHA / NCRB Intelligence Ingestion',
       timestamp: new Date().toISOString(),

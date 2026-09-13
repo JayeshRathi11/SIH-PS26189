@@ -39,7 +39,10 @@ def execute_pipeline_task(job_id: str, domain: str = None, raw_text: str = None,
             normalized_triples = [normalize_relationship(r) for r in raw_triples]
 
             # Ingest incrementally against persistent database
-            inc_res = ingest_new_case_incrementally(extracted_entities, normalized_triples, case_id=domain)
+            inc_res = ingest_new_case_incrementally(
+                extracted_entities, normalized_triples, case_id=domain,
+                triggered_by_username=triggered_by_username, triggered_by_user_id=triggered_by_user_id
+            )
 
             total_e = inc_res["total_entities"]
             total_r = inc_res["total_relationships"]
@@ -421,7 +424,10 @@ async def import_structured_data(
     client_ip = get_client_ip(request)
     file_hash = hashlib.sha256(raw_bytes).hexdigest()
 
-    result = ingest_new_case_incrementally(entities, relationships, case_id=domain)
+    result = ingest_new_case_incrementally(
+        entities, relationships, case_id=domain,
+        triggered_by_username=current_user.username, triggered_by_user_id=current_user.id
+    )
 
     log_audit(
         db, action="STRUCTURED_DATA_IMPORTED", username=current_user.username, user_id=current_user.id,

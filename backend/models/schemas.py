@@ -18,6 +18,11 @@ class EntityNode(BaseModel):
     # /graph fetch, only surviving in-session via local React state.
     verified_by_officer: Optional[bool] = False
     status: Optional[str] = "ACTIVE"
+    # Set by the criminal-history reference-lookup step in
+    # pipeline/resolution/incremental_resolver.py (ingest_new_case_
+    # incrementally) -- see EntityRecord.has_prior_history in backend/db.py.
+    has_prior_history: Optional[bool] = False
+    prior_history_summary: Optional[str] = None
 
 class RelationshipEdge(BaseModel):
     source: str

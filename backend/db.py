@@ -215,6 +215,14 @@ class EntityRecord(Base):
     community_cluster = Column(Integer, default=0)
     verified_by_officer = Column(Boolean, default=False)
     status = Column(String, default="ACTIVE") # ACTIVE, REJECTED, FLAGGED
+    # Set by the criminal-history reference-lookup step in
+    # pipeline/resolution/incremental_resolver.py (ingest_new_case_
+    # incrementally) whenever this entity matches a criminal_history_records
+    # row -- see CriminalHistoryRecord below. Sticky once true: a later
+    # resolution pass that no longer finds a match does not clear it, so a
+    # real prior-history hit is never silently dropped by a subsequent merge.
+    has_prior_history = Column(Boolean, default=False)
+    prior_history_summary = Column(Text, nullable=True)
 
 class RelationshipRecord(Base):
     __tablename__ = "relationships"
@@ -233,6 +241,27 @@ class RelationshipRecord(Base):
     verified_by_officer = Column(Boolean, default=False)
     weight_multiplier = Column(Float, default=1.0)
     status = Column(String, default="ACTIVE") # ACTIVE, REJECTED
+
+class CriminalHistoryRecord(Base):
+    """
+    Reference/lookup table of known offenders -- independent of the live
+    entities/relationships graph. Never written to by resolution itself;
+    only read from, by the prior-history check in pipeline/resolution/
+    incremental_resolver.py, which flags a resolved EntityRecord (see
+    has_prior_history/prior_history_summary above) when it matches a row
+    here on phone number, vehicle number (exact), or name (fuzzy).
+    """
+    __tablename__ = "criminal_history_records"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    full_name = Column(String, index=True, nullable=False)
+    aliases = Column(JSON, default=list)
+    phone_numbers = Column(JSON, default=list)
+    vehicle_numbers = Column(JSON, default=list)
+    prior_case_ids = Column(JSON, default=list)
+    offense_types = Column(JSON, default=list)
+    status = Column(String, default="SUSPECT") # CONVICTED, SUSPECT, CLEARED
+    notes = Column(Text, nullable=True)
 
 class CaseRecord(Base):
     """
@@ -296,6 +325,87 @@ def seed_default_cases(db):
         ))
     db.commit()
 
+# Synthetic reference records for the criminal-history lookup demo -- every
+# name, phone number, vehicle number and case ID here is fictional. Two of
+# these are deliberately reused by the prior-history test flow described in
+# pipeline/resolution/incremental_resolver.py's matching step: Sanjay Wagh's
+# phone number and Farhana Sheikh's vehicle number are exact-match targets;
+# Kunal Bhagwat's name is a near-miss fuzzy-match target (a test entity named
+# e.g. "Kunal Bhagwatt" should flag as a moderate-confidence possible match,
+# not a confirmed one).
+CRIMINAL_HISTORY_SEED = [
+    {
+        "full_name": "Sanjay Wagh", "aliases": ["Sanju"], "phone_numbers": ["9998887770"],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2019/0442"],
+        "offense_types": ["Narcotics Trafficking"], "status": "CONVICTED",
+        "notes": "Synthetic reference record. Convicted 2019, cross-border narcotics consignment case.",
+    },
+    {
+        "full_name": "Farhana Sheikh", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": ["MH14XY7788"], "prior_case_ids": ["FIR-2021/1187"],
+        "offense_types": ["Vehicle Theft & Re-Registration"], "status": "SUSPECT",
+        "notes": "Synthetic reference record. Suspected in multi-state vehicle re-registration racket.",
+    },
+    {
+        "full_name": "Kunal Bhagwat", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2020/0091"],
+        "offense_types": ["Cyber Financial Fraud"], "status": "CONVICTED",
+        "notes": "Synthetic reference record. Convicted in a phishing/mule-account fraud ring.",
+    },
+    {
+        "full_name": "Devraj Solankar", "aliases": ["DJ"], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2018/0765"],
+        "offense_types": ["Human Trafficking"], "status": "CONVICTED",
+        "notes": "Synthetic reference record. Convicted, cross-border trafficking network.",
+    },
+    {
+        "full_name": "Meena Kulthe", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2022/0233"],
+        "offense_types": ["Illegal Betting & Hawala"], "status": "SUSPECT",
+        "notes": "Synthetic reference record. Named in an illegal betting/hawala settlement probe.",
+    },
+    {
+        "full_name": "Aslam Bhatti", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2017/0119"],
+        "offense_types": ["Arms Smuggling"], "status": "CLEARED",
+        "notes": "Synthetic reference record. Previously investigated for arms smuggling; case closed, cleared.",
+    },
+    {
+        "full_name": "Geeta Fernandes", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2020/0588"],
+        "offense_types": ["Land Grabbing & Property Fraud"], "status": "CONVICTED",
+        "notes": "Synthetic reference record. Convicted in a forged land-title fraud case.",
+    },
+    {
+        "full_name": "Irfan Qureshi", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2021/0347"],
+        "offense_types": ["Counterfeit Currency"], "status": "SUSPECT",
+        "notes": "Synthetic reference record. Suspected distributor in a counterfeit currency ring.",
+    },
+    {
+        "full_name": "Baljeet Mann", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2019/0876"],
+        "offense_types": ["Organized Extortion"], "status": "CONVICTED",
+        "notes": "Synthetic reference record. Convicted, extortion racket targeting local businesses.",
+    },
+    {
+        "full_name": "Priya Bansal", "aliases": [], "phone_numbers": [],
+        "vehicle_numbers": [], "prior_case_ids": ["FIR-2022/0410"],
+        "offense_types": ["Kidnapping for Ransom"], "status": "SUSPECT",
+        "notes": "Synthetic reference record. Suspected accomplice in a ransom-negotiation cell.",
+    },
+]
+
+def seed_criminal_history_records(db):
+    """Pre-seeds the synthetic known-offenders reference table. Only runs
+    once -- if the table already has any rows, it is left alone (same
+    pattern as seed_default_cases)."""
+    if db.query(CriminalHistoryRecord).count() > 0:
+        return
+    for rec in CRIMINAL_HISTORY_SEED:
+        db.add(CriminalHistoryRecord(**rec))
+    db.commit()
+
 def upsert_resolved_graph(db, resolved_entities: dict, resolved_triples: list):
     """
     Upserts resolved entity nodes and relationship edges into SQLite database.
@@ -322,6 +432,13 @@ def upsert_resolved_graph(db, resolved_entities: dict, resolved_triples: list):
                 existing.hub_score = meta["hub_score"]
             if "community_cluster" in meta:
                 existing.community_cluster = meta["community_cluster"]
+            # Sticky, same reasoning as the has_prior_history column comment
+            # above: only ever set true here, never reset back to false, so
+            # a real match found on an earlier resolution pass survives a
+            # later merge that happens not to re-find it.
+            if meta.get("has_prior_history"):
+                existing.has_prior_history = True
+                existing.prior_history_summary = meta.get("prior_history_summary", existing.prior_history_summary)
         else:
             entity_rec = EntityRecord(
                 id=cid,
@@ -331,7 +448,9 @@ def upsert_resolved_graph(db, resolved_entities: dict, resolved_triples: list):
                 domains=new_domains,
                 phone_numbers=new_phones,
                 hub_score=meta.get("hub_score", 0.05),
-                community_cluster=meta.get("community_cluster", 0)
+                community_cluster=meta.get("community_cluster", 0),
+                has_prior_history=meta.get("has_prior_history", False),
+                prior_history_summary=meta.get("prior_history_summary")
             )
             db.add(entity_rec)
 
@@ -405,14 +524,25 @@ def migrate_columns():
             ("document_metadata", "sha256_hash", "VARCHAR"),
             ("audit_logs", "content_hash", "VARCHAR"),
             ("audit_logs", "prev_hash", "VARCHAR"),
-            ("audit_logs", "entry_hash", "VARCHAR")
+            ("audit_logs", "entry_hash", "VARCHAR"),
+            ("entities", "has_prior_history", "BOOLEAN DEFAULT FALSE"),
+            ("entities", "prior_history_summary", "TEXT"),
         ]
         for table, col, col_type in migrations:
             try:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
                 conn.commit()
             except Exception:
-                pass
+                # On Postgres, a failed statement (e.g. "column already
+                # exists" for a migration applied in an earlier run) leaves
+                # the connection's transaction poisoned -- every later
+                # statement on it fails too, with "current transaction is
+                # aborted", until a rollback. Without this, one already-
+                # applied migration anywhere earlier in the list silently
+                # broke every migration after it, including genuinely new
+                # ones that had never run yet. SQLite has no such state to
+                # clean up, so rollback() is a safe no-op there.
+                conn.rollback()
 
 def init_db():
     _print_startup_db_banner()
@@ -423,6 +553,7 @@ def init_db():
         if os.getenv("DEMO_MODE", "false").lower() == "true":
             seed_default_users(db)
         seed_default_cases(db)
+        seed_criminal_history_records(db)
     finally:
         db.close()
 

@@ -33,7 +33,9 @@ class GraphService:
                         "hub_score": r.hub_score or 0.05,
                         "community_cluster": r.community_cluster or 0,
                         "verified_by_officer": getattr(r, "verified_by_officer", False),
-                        "status": getattr(r, "status", "ACTIVE")
+                        "status": getattr(r, "status", "ACTIVE"),
+                        "has_prior_history": getattr(r, "has_prior_history", False),
+                        "prior_history_summary": getattr(r, "prior_history_summary", None)
                     }
                 db.close()
                 return res
@@ -132,7 +134,9 @@ class GraphService:
                 "hub_score": hub_meta.get("combined_hub_score", 0.05),
                 "community_cluster": hub_meta.get("community_cluster", 0),
                 "verified_by_officer": meta.get("verified_by_officer", False),
-                "status": meta.get("status", "ACTIVE")
+                "status": meta.get("status", "ACTIVE"),
+                "has_prior_history": meta.get("has_prior_history", False),
+                "prior_history_summary": meta.get("prior_history_summary")
             })
 
         edges = []
