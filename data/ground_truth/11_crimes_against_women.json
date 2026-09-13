@@ -1,0 +1,15 @@
+{
+  "entities": [
+    {"canonical_name": "Manav Trivedi", "type": "PERSON", "aliases_and_mentions": ["Manav Trivedi", "Trivedi"]},
+    {"canonical_name": "Rakesh Oberoi", "type": "PERSON", "aliases_and_mentions": ["Rakesh Oberoi", "Oberoi"]},
+    {"canonical_name": "Ananya Kapoor", "type": "PERSON", "aliases_and_mentions": ["Ananya Kapoor", "Ms. Ananya Kapoor"]},
+    {"canonical_name": "Sunview Residency", "type": "LOCATION", "aliases_and_mentions": ["Sunview Residency", "Sunview Residency, Sector 21"]},
+    {"canonical_name": "9845670340", "type": "PHONE_NUMBER", "aliases_and_mentions": ["9845670340", "0340"]}
+  ],
+  "relationships": [
+    {"from": "Manav Trivedi", "to": "Rakesh Oberoi", "type": "ASSOCIATE_OF"},
+    {"from": "Manav Trivedi", "to": "Ananya Kapoor", "type": "ASSOCIATE_OF"},
+    {"from": "Manav Trivedi", "to": "Sunview Residency", "type": "CO_LOCATED_WITH"},
+    {"from": "Rakesh Oberoi", "to": "Sunview Residency", "type": "CO_LOCATED_WITH"}
+  ]
+}

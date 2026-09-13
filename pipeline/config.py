@@ -106,5 +106,16 @@ DOMAINS = {
         "folder": "10_land_grabbing_fraud",
         "hub_alias": "the fixer",
         "canonical_name": "Iqbal Ansari"
+    },
+    # Standalone domain -- not part of the Iqbal Ansari syndicate narrative
+    # the other 10 domains share, so hub_alias/canonical_name reference this
+    # domain's own central subject instead (these two fields are descriptive
+    # only; nothing outside this dict reads them).
+    "11_crimes_against_women": {
+        "id": "11",
+        "name": "Crimes Against Women",
+        "folder": "11_crimes_against_women",
+        "hub_alias": "Manav Trivedi",
+        "canonical_name": "Manav Trivedi"
     }
 }

@@ -53,6 +53,7 @@ export const CASE_TO_DOMAIN_MAP = {
   'case-8': '08_illegal_betting_hawala',
   'case-9': '09_vehicle_theft_ring',
   'case-10': '10_land_grabbing_fraud',
+  'case-11': '11_crimes_against_women',
   '01_narcotics_trafficking': '01_narcotics_trafficking',
   '02_human_trafficking': '02_human_trafficking',
   '03_cyber_financial_fraud': '03_cyber_financial_fraud',
@@ -63,6 +64,7 @@ export const CASE_TO_DOMAIN_MAP = {
   '08_illegal_betting_hawala': '08_illegal_betting_hawala',
   '09_vehicle_theft_ring': '09_vehicle_theft_ring',
   '10_land_grabbing_fraud': '10_land_grabbing_fraud',
+  '11_crimes_against_women': '11_crimes_against_women',
 };
 
 export const DOMAIN_TITLES = {
@@ -77,6 +79,7 @@ export const DOMAIN_TITLES = {
   'case-8': '08: Illegal Betting & Hawala',
   'case-9': '09: Vehicle Theft Ring',
   'case-10': '10: Land Grabbing & Fraud',
+  'case-11': '11: Crimes Against Women',
 };
 
 // ----------------------------------------------------

@@ -1,0 +1,39 @@
+DOC_ID: FIR_11_001 | TYPE: FIR | DOMAIN: 11_crimes_against_women
+An FIR was registered at PS Sector 21 on a written complaint filed by Ms. Ananya Kapoor, resident of Sunview Residency, Sector 21, alleging persistent stalking and unwanted contact over a period of approximately three weeks by an individual identified as Manav Trivedi, previously known to the complainant through a shared professional circle. The complainant stated that Trivedi had repeatedly appeared outside her residence and workplace without any lawful reason, and had sent a large number of unsolicited messages and calls from a mobile number ending in 0340, despite having been asked on multiple occasions to stop.
+
+The complaint further states that on two occasions, an unidentified associate of Trivedi, later described as a man in his thirties, was seen waiting near the residence gate along with him, though the complainant was unable to provide the associate's name at the time of filing. The complainant expressed apprehension for her safety and requested that appropriate action be taken.
+
+The FIR records that the complaint was lodged at approximately 17:20 hrs, and that the matter has been registered for investigation under the relevant provisions relating to stalking and criminal intimidation. The investigating officer has directed that call records associated with the flagged number be obtained, and that the residential society's security register and any available CCTV footage covering the main gate be secured for review. No arrest has been made at the time of this filing, and the matter has been marked for continued investigation, with a request that a surveillance watch be placed at the complainant's residence and known workplace pending further developments.
+
+###_DOC_START_###
+
+DOC_ID: SURV_11_002 | TYPE: SURVEILLANCE | DOMAIN: 11_crimes_against_women
+Field team assigned to the residential watch at Sunview Residency, Sector 21 observed a male matching the description of Manav Trivedi arrive on foot at approximately 19:05 hrs and take up a position on the footpath opposite the residence's main gate. He remained at the location for approximately twenty minutes, during which he was seen checking his phone repeatedly and looking toward the gate on several occasions.
+
+At approximately 19:25 hrs, a second individual, subsequently identified through follow-up verification as Rakesh Oberoi, arrived and joined him; the two were seen walking a short distance to Café Meridian in the Sector 21 market, where they sat at an outside table for close to forty minutes. During this period, Trivedi was observed showing Oberoi something on his phone screen on at least two occasions, and Oberoi was seen making notes in a small notebook at one point. Team could not overhear the conversation from the observation position.
+
+The two departed separately at approximately 20:15 hrs, Trivedi on foot in the direction of the market's rear lane and Oberoi on a two-wheeler. Follow-up verification confirmed Trivedi's mobile number as 9845670340, matching the last four digits (0340) referenced in the complainant's original statement. No further activity was observed at the residence for the remainder of the shift. Log closed at 21:30 hrs, with a recommendation that observation be extended to Oberoi's own movements given his apparent involvement.
+
+###_DOC_START_###
+
+DOC_ID: INTEL_11_003 | TYPE: INTELLIGENCE_BRIEF | DOMAIN: 11_crimes_against_women
+SUBJECT: Pattern Assessment -- Manav Trivedi and Associate Rakesh Oberoi
+
+SUMMARY: This brief consolidates inputs from field surveillance and prior district records concerning the subject Manav Trivedi, presently under investigation in connection with a stalking complaint filed at PS Sector 21 by Ms. Ananya Kapoor.
+
+PRIOR PATTERN: District records indicate that a complaint of a broadly similar nature (Case No. NC/2025/00871) was recorded against an individual using the same mobile number, 9845670340, in a neighbouring jurisdiction approximately eight months prior, though that matter was closed without further action after the complainant did not pursue it. A separate, unverified informant report from four months prior noted a man matching Trivedi's description frequenting the vicinity of a different residential society roughly six kilometres from Sunview Residency, though no formal complaint was registered in that instance.
+
+ASSOCIATE: Rakesh Oberoi has been observed in direct contact with Trivedi on at least one occasion during the present surveillance period, and district records show he was named as a peripheral associate in the earlier closed matter referenced above, though he was not made a party to any formal proceeding at that time.
+
+ASSESSMENT: The recurrence of the same contact number across two geographically separate complaints, together with Oberoi's repeated association with Trivedi, suggests a pattern of conduct extending beyond the present complaint. It is recommended that the current investigation be cross-referenced against the earlier closed matter (Case No. NC/2025/00871), and that Oberoi's movements and contacts be independently monitored pending further clarity on his role. This brief is intended to support the ongoing field investigation and does not itself constitute a finding of fact.
+
+###_DOC_START_###
+
+DOC_ID: SOCMINT_11_004 | TYPE: SOCMINT | DOMAIN: 11_crimes_against_women
+Summary of open-source social media review conducted in respect of the subject Manav Trivedi, current as of the date of this note. Trivedi's public profile shows frequent posting activity centred on the Sector 21 market area, with several recent posts geotagged at or near locations consistent with the vicinity of Sunview Residency over the past month.
+
+A review of his public friends/followers list and tagged photographs shows repeated and recent interaction with an account belonging to Rakesh Oberoi, including two photographs posted within the last three weeks showing the two together at what appears to be the same market café referenced in the field surveillance log.
+
+Trivedi's public activity also shows a pattern of comments and reactions on posts made by accounts within the complainant Ms. Ananya Kapoor's own public friends list, though no direct interaction with the complainant's own account was identified, consistent with her statement that direct contact had shifted to phone calls and messages rather than social media. No content amounting to an explicit threat was identified on any public post reviewed.
+
+This summary is based solely on publicly accessible content at the time of review and does not involve any account access, scraping automation, or platform data request; it is intended to corroborate the timeline and associations already developed through field surveillance and is not itself submitted as independent evidence of any offence.

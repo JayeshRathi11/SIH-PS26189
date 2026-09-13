@@ -298,7 +298,7 @@ class CaseRecord(Base):
 # fresh database seeds the exact same 10 domain cases + the unified
 # master view that used to be baked into the frontend.
 DEFAULT_CASES = [
-    {"id": "case-all", "case_id": "GLOBAL-MASTER-00", "title": "All Domains (Master View)", "entities_label": "10 Domains", "links_label": "Resolved Hub", "tag": "Global"},
+    {"id": "case-all", "case_id": "GLOBAL-MASTER-00", "title": "All Domains (Master View)", "entities_label": "11 Domains", "links_label": "Resolved Hub", "tag": "Global"},
     {"id": "case-1", "case_id": "FIR-01-NARCO", "title": "01: Narcotics Trafficking", "entities_label": "20", "links_label": "18", "tag": "Active"},
     {"id": "case-2", "case_id": "FIR-02-HUMAN", "title": "02: Human Trafficking", "entities_label": "5", "links_label": "4", "tag": "Active"},
     {"id": "case-3", "case_id": "FIR-03-CYBER", "title": "03: Cyber Financial Fraud", "entities_label": "16", "links_label": "16", "tag": "Active"},
@@ -309,6 +309,7 @@ DEFAULT_CASES = [
     {"id": "case-8", "case_id": "FIR-08-HAWALA", "title": "08: Illegal Betting & Hawala", "entities_label": "16", "links_label": "10", "tag": "Active"},
     {"id": "case-9", "case_id": "FIR-09-VEHICLE", "title": "09: Vehicle Theft Ring", "entities_label": "12", "links_label": "9", "tag": "Active"},
     {"id": "case-10", "case_id": "FIR-10-LAND", "title": "10: Land Grabbing & Fraud", "entities_label": "16", "links_label": "11", "tag": "Active"},
+    {"id": "case-11", "case_id": "FIR-11-CAW", "title": "11: Crimes Against Women", "entities_label": "6", "links_label": "5", "tag": "Active"},
 ]
 
 def seed_default_cases(db):
