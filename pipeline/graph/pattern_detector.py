@@ -1,6 +1,5 @@
 import networkx as nx
 from typing import Dict, List, Any
-from pipeline.graph.neo4j_client import Neo4jClient
 
 class SuspiciousPatternDetector:
     """

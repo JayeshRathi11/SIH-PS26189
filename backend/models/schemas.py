@@ -77,6 +77,16 @@ class PipelineJobResponse(BaseModel):
     error_message: Optional[str] = None
     skipped_files: Optional[List[str]] = None
 
+class StructuredImportResponse(BaseModel):
+    import_type: str
+    domain: str
+    rows_processed: int
+    rows_skipped: Optional[List[str]] = None
+    total_entities: int
+    total_relationships: int
+    new_entities_count: int
+    merged_entities_count: int
+
 class EvaluationScoreResponse(BaseModel):
     domain: str
     # Optional, not required: a case with no ground truth file (any case

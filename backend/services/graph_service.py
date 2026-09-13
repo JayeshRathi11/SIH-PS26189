@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from pipeline.config import PROCESSED_DIR, STRUCTURED_DIR
 from pipeline.graph.analytics import GraphAnalyticsEngine
-from pipeline.graph.neo4j_client import Neo4jClient
+from pipeline.graph.neo4j_client import get_neo4j_client
 
 class GraphService:
     """
@@ -83,13 +83,35 @@ class GraphService:
             return df.to_dict(orient="records")
         return []
 
+    def _compute_hubs(self, entity_map: Dict[str, Any], relationships: List[Dict[str, Any]],
+                       top_n: int = 500, as_of_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Key-influencer ranking (PageRank + betweenness + community), preferring
+        real Neo4j Graph Data Science queries over the in-memory NetworkX
+        engine. Falls back to NetworkX whenever Neo4j isn't reachable --
+        which, as of this migration, is still the default in production
+        (no Neo4j service is provisioned there yet; see docker-compose.yml's
+        opt-in `--profile neo4j`), so this fallback is what actually serves
+        the live deployment until a reachable NEO4J_URI is configured there.
+        """
+        neo4j = get_neo4j_client()
+        if neo4j.is_connected:
+            try:
+                hubs = neo4j.compute_centrality(top_n=top_n, as_of_date=as_of_date)
+                if hubs:
+                    return hubs
+            except Exception as e:
+                print(f"[GraphService Warning] Neo4j GDS centrality failed, falling back to NetworkX: {e}")
+
+        analytics = GraphAnalyticsEngine(list(entity_map.values()), relationships, as_of_date=as_of_date)
+        return analytics.get_ranked_key_influencers(top_n=top_n)
+
     def get_full_graph(self, domain_filter: str = None, entity_type: str = None, as_of_date: Optional[str] = None, include_rejected: bool = False) -> Dict[str, Any]:
         entity_map = self._load_entity_map()
         relationships = self._load_relationships()
 
         # Compute graph analytics with temporal decay & officer verification weights
-        analytics = GraphAnalyticsEngine(list(entity_map.values()), relationships, as_of_date=as_of_date)
-        hubs = {h["entity_id"]: h for h in analytics.get_ranked_key_influencers(top_n=500)}
+        hubs = {h["entity_id"]: h for h in self._compute_hubs(entity_map, relationships, top_n=500, as_of_date=as_of_date)}
 
         nodes = []
         for cid, meta in entity_map.items():
@@ -153,11 +175,13 @@ class GraphService:
         }
 
     def get_key_influencers(self, domain_filter: str = None, top_n: int = 10, as_of_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        # NOTE: domain_filter is accepted but not applied here -- pre-existing
+        # behavior carried over unchanged from the NetworkX implementation
+        # this replaces (GraphAnalyticsEngine was never actually scoped to a
+        # domain either); ranking is always computed over the whole graph.
         entity_map = self._load_entity_map()
         relationships = self._load_relationships()
-        analytics = GraphAnalyticsEngine(list(entity_map.values()), relationships, as_of_date=as_of_date)
-        hubs = analytics.get_ranked_key_influencers(top_n=top_n)
-        return hubs
+        return self._compute_hubs(entity_map, relationships, top_n=top_n, as_of_date=as_of_date)
 
     def get_timeline_events(self, domain_filter: str = None, include_rejected: bool = False) -> List[Dict[str, Any]]:
         """

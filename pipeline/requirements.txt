@@ -2,6 +2,12 @@ pandas>=2.0.0
 pydantic>=2.0.0
 rapidfuzz>=3.0.0
 networkx>=3.0
+# Required by networkx.pagerank()'s default backend (_pagerank_scipy) --
+# without it, GraphAnalyticsEngine.compute_pagerank() silently falls into
+# its except-fallback and returns a uniform 1/N score for every entity
+# instead of a real PageRank. Not previously listed here or installed in
+# this env; discovered while migrating graph analytics to Neo4j GDS.
+scipy>=1.11.0
 neo4j>=5.0.0
 google-genai>=0.1.0
 requests>=2.28.0

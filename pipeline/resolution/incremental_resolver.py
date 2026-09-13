@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from rapidfuzz import process, fuzz
 from backend.db import SessionLocal, EntityRecord, RelationshipRecord, upsert_resolved_graph
 from pipeline.graph.analytics import GraphAnalyticsEngine
+from pipeline.graph.neo4j_client import get_neo4j_client
 
 def normalize_phone_number(phone: str) -> str:
     digits = re.sub(r"[^\d]", "", phone or "")
@@ -31,7 +32,13 @@ def ingest_new_case_incrementally(
             "type": rec.type,
             "aliases": aliases_set,
             "phone_numbers": set(rec.phone_numbers or []),
-            "domains": set(rec.domains or [])
+            "domains": set(rec.domains or []),
+            # Carried through so a re-merge of an already-confirmed/rejected
+            # entity doesn't get overwritten back to defaults below (matches
+            # upsert_resolved_graph(), which likewise never touches these
+            # fields for an existing EntityRecord).
+            "verified_by_officer": rec.verified_by_officer,
+            "status": rec.status
         }
 
         for alias in aliases_set:
@@ -56,13 +63,24 @@ def ingest_new_case_incrementally(
         lower_name = raw_name.lower()
         target_cid = None
 
-        # 1. Exact phone match
-        if ent_type == "PHONE_NUMBER" or re.search(r"\+?\d[\d\s\-]{8,}\d", raw_name):
-            p_digits = normalize_phone_number(raw_name)
-            if p_digits in phone_to_id:
-                target_cid = phone_to_id[p_digits]
-            else:
-                target_cid = f"ENT_PHONE_{p_digits}"
+        # 1. Exact phone match -- checked against numbers already persisted
+        # (phone_to_id seeded from existing_records above) AND, via the
+        # phone_to_id registration in the create branch below, numbers
+        # already created earlier in this same batch. Previously the
+        # "not found yet" case guessed target_cid = f"ENT_PHONE_{p_digits}",
+        # which never matched the real id scheme entities are actually
+        # created under (f"ENT_{ent_type}_{safe_id_name}") -- since that
+        # guess is truthy, it also skipped the step 2/3 fallbacks below
+        # (both gated on `not target_cid`), so a second mention of a
+        # brand-new phone number within one batch matched neither this
+        # guessed id nor its real one, got created again, and both
+        # miscounted as "new" and clobbered the first mention's entity_map
+        # entry. Only registering a real, already-created id here (never a
+        # guessed one) keeps target_cid meaningful for the checks below.
+        is_phone_like = ent_type == "PHONE_NUMBER" or re.search(r"\+?\d[\d\s\-]{8,}\d", raw_name)
+        p_digits = normalize_phone_number(raw_name) if is_phone_like else None
+        if p_digits and p_digits in phone_to_id:
+            target_cid = phone_to_id[p_digits]
 
         # 2. Exact alias or vehicle match
         if not target_cid and lower_name in alias_to_id:
@@ -101,6 +119,13 @@ def ingest_new_case_incrementally(
             alias_to_id[lower_name] = target_cid
             for a in raw_aliases:
                 alias_to_id[a.lower()] = target_cid
+            # Register this brand-new number's digits under its REAL,
+            # just-created id -- so a later mention of the same number
+            # later in this batch (even in a different format, e.g. with a
+            # "+91 " prefix) hits the step 1 exact-phone-match check above
+            # and merges into this entity, instead of being created again.
+            if p_digits:
+                phone_to_id[p_digits] = target_cid
             resolved_id_map[raw_name] = target_cid
 
     # Link incoming relationships
@@ -176,8 +201,60 @@ def ingest_new_case_incrementally(
         meta["hub_score"] = hub_info.get("combined_hub_score", 0.05)
         meta["community_cluster"] = hub_info.get("community_cluster", 0)
 
-    # Persist updates to SQLite
+    # Persist updates to SQLite/Postgres
     upsert_resolved_graph(db, entity_map, resolved_relationships)
+
+    # Mirror the same upsert into Neo4j in this same request path -- this is
+    # the live upload/webcam ingestion flow (the one a real case actually
+    # goes through), which previously had no Neo4j write at all; only the
+    # separate full-batch pipeline (pipeline/graph/build_graph.py) did. A
+    # background/periodic sync job was deliberately not used here: it would
+    # risk drift between Postgres and Neo4j and undermine the WebSocket
+    # live-sync guarantee that a confirmed write is immediately visible
+    # everywhere. No-ops safely if Neo4j isn't reachable (same as every
+    # other Neo4jClient call site).
+    neo4j = get_neo4j_client()
+    if neo4j.is_connected:
+        # Postgres is already committed above -- Neo4j is a mirror, not the
+        # source of truth, so a Neo4j hiccup here must never fail this
+        # request or mark the pipeline job FAILED when the real, durable
+        # write already succeeded. Log and move on.
+        try:
+            for cid, meta in entity_map.items():
+                hub_info = ranked_hubs.get(cid, {})
+                neo4j.add_entity_node(
+                    cid,
+                    meta.get("canonical_name", cid),
+                    meta.get("type", "PERSON"),
+                    list(meta.get("aliases", [])),
+                    list(meta.get("domains", [])),
+                    hub_score=meta.get("hub_score", hub_info.get("combined_hub_score", 0.05)),
+                    community_cluster=meta.get("community_cluster", hub_info.get("community_cluster", 0)),
+                    verified_by_officer=meta.get("verified_by_officer", False),
+                    status=meta.get("status", "ACTIVE"),
+                    phone_numbers=list(meta.get("phone_numbers", []))
+                )
+            for r in resolved_relationships:
+                src, tgt = r["source_id"], r["target_id"]
+                rel_t = r.get("relationship_type", "ASSOCIATE_OF")
+                dom = r.get("domain", "general")
+                neo4j.add_relationship_edge(
+                    source_id=src,
+                    target_id=tgt,
+                    rel_type=rel_t,
+                    raw_rel_type=r.get("raw_relationship_type", ""),
+                    domain=dom,
+                    evidence=r.get("evidence", ""),
+                    confidence=float(r.get("confidence", 0.9)),
+                    timestamp=r.get("timestamp", ""),
+                    # Identical id scheme to backend/db.py's upsert_resolved_graph(),
+                    # so this edge's postgres_id always matches its RelationshipRecord.id.
+                    postgres_id=f"REL_{src}_{tgt}_{rel_t}_{dom}",
+                    status=r.get("status", "ACTIVE")
+                )
+        except Exception as e:
+            print(f"[IncrementalResolver Warning] Neo4j mirror write failed (Postgres already committed): {e}")
+
     db.close()
 
     return {

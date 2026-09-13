@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from backend.models.schemas import GraphDataResponse, HubInfluencerResponse
 from backend.services.graph_service import GraphService
 from backend.routers.auth import get_current_user, User
+from pipeline.graph.neo4j_client import get_neo4j_client
 
 router = APIRouter(prefix="/graph", tags=["Graph & Analytics"])
 service = GraphService()
@@ -17,6 +18,21 @@ class PathExplanationResponse(BaseModel):
     summary_conclusion: Optional[str] = None
     paths: Optional[List[Dict[str, Any]]] = []
     message: Optional[str] = None
+
+class MultiHopEntity(BaseModel):
+    id: str
+    postgres_id: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    domains: Optional[List[str]] = []
+    status: Optional[str] = None
+    hops: int
+
+class MultiHopResponse(BaseModel):
+    source_entity: str
+    max_hops: int
+    total_found: int
+    entities: List[MultiHopEntity]
 
 @router.get("", response_model=GraphDataResponse)
 def get_graph(
@@ -76,3 +92,42 @@ def explain_shortest_path(
     """
     result = service.explain_path(source_id=source_id, target_id=target_id, max_depth=max_depth)
     return result
+
+@router.get("/expand/{entity_id}", response_model=MultiHopResponse)
+def expand_entity_neighborhood(
+    entity_id: str,
+    hops: int = Query(2, ge=1, le=6, description="Maximum number of hops to traverse from the source entity"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Multi-hop network expansion: every entity reachable from `entity_id`
+    within `hops` hops, over any relationship type in either direction,
+    with the shortest hop-distance at which each was reached. Answered
+    directly with a Cypher variable-length path query against Neo4j --
+    the kind of query that's straightforward there and awkward/expensive
+    to express by rebuilding a NetworkX graph from scratch per request.
+
+    Requires Neo4j to be reachable (this is a new, Neo4j-native capability,
+    not one with a NetworkX fallback) -- returns 503 if it isn't.
+    """
+    neo4j = get_neo4j_client()
+    if not neo4j.is_connected:
+        raise HTTPException(
+            status_code=503,
+            detail="Neo4j is not reachable -- multi-hop expansion requires the graph engine to be up."
+        )
+    try:
+        results = neo4j.find_entities_within_hops(entity_id, max_hops=hops)
+    except Exception as e:
+        # is_connected only reflects whether connect() succeeded at some
+        # point in the past, not live socket health -- a driver that was up
+        # at startup and later drops still passes that check, so the actual
+        # query can still fail. Surface that as the same clean 503 rather
+        # than a raw 500.
+        raise HTTPException(status_code=503, detail=f"Neo4j query failed: {e}")
+    return MultiHopResponse(
+        source_entity=entity_id,
+        max_hops=hops,
+        total_found=len(results),
+        entities=results
+    )

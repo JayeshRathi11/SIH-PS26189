@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Any
 from pipeline.config import PROCESSED_DIR, STRUCTURED_DIR
-from pipeline.graph.neo4j_client import Neo4jClient
+from pipeline.graph.neo4j_client import get_neo4j_client
 from pipeline.graph.analytics import GraphAnalyticsEngine
 
 def export_processed_graph_files(entities_dict: Dict[str, Any], relationships: List[Dict[str, Any]]):
@@ -58,32 +58,52 @@ def build_graph_and_compute_analytics(entities_dict: Dict[str, Any], relationshi
         meta["hub_score"] = h_data.get("combined_hub_score", 0.05)
         meta["community_cluster"] = h_data.get("community_cluster", 0)
 
-    # Load into Neo4j if available
-    neo4j = Neo4jClient()
-    if neo4j.connect():
-        for cid, meta in entities_dict.items():
-            h_data = hubs_lookup.get(cid, {})
-            neo4j.add_entity_node(
-                cid,
-                meta["canonical_name"],
-                meta["type"],
-                list(meta.get("aliases", [])),
-                list(meta.get("domains", [])),
-                hub_score=h_data.get("combined_hub_score", 0.05),
-                community_cluster=h_data.get("community_cluster", 0)
-            )
-        for r in relationships:
-            neo4j.add_relationship_edge(
-                source_id=r["source_id"],
-                target_id=r["target_id"],
-                rel_type=r.get("relationship_type", "ASSOCIATE_OF"),
-                raw_rel_type=r.get("raw_relationship_type", ""),
-                domain=r.get("domain", ""),
-                evidence=r.get("evidence", ""),
-                confidence=float(r.get("confidence", 0.9)),
-                timestamp=r.get("timestamp", "")
-            )
-        neo4j.close()
+    # Mirror into Neo4j if reachable -- same process-wide singleton the
+    # backend uses, so a standalone CLI pipeline run and the live API share
+    # the same connection lifecycle logic (connect once, reuse).
+    neo4j = get_neo4j_client()
+    if neo4j.is_connected:
+        # SQLite/Postgres persistence happens separately in run_pipeline.py
+        # right after this call -- a Neo4j hiccup here must not take down
+        # the batch run or lose the already-computed analytics results.
+        try:
+            for cid, meta in entities_dict.items():
+                h_data = hubs_lookup.get(cid, {})
+                neo4j.add_entity_node(
+                    cid,
+                    meta["canonical_name"],
+                    meta["type"],
+                    list(meta.get("aliases", [])),
+                    list(meta.get("domains", [])),
+                    hub_score=h_data.get("combined_hub_score", 0.05),
+                    community_cluster=h_data.get("community_cluster", 0),
+                    verified_by_officer=meta.get("verified_by_officer", False),
+                    status=meta.get("status", "ACTIVE"),
+                    phone_numbers=list(meta.get("phone_numbers", []))
+                )
+            for r in relationships:
+                src, tgt = r["source_id"], r["target_id"]
+                rel_t = r.get("relationship_type", "ASSOCIATE_OF")
+                dom = r.get("domain", "general")
+                neo4j.add_relationship_edge(
+                    source_id=src,
+                    target_id=tgt,
+                    rel_type=rel_t,
+                    raw_rel_type=r.get("raw_relationship_type", ""),
+                    domain=dom,
+                    evidence=r.get("evidence", ""),
+                    confidence=float(r.get("confidence", 0.9)),
+                    verified_by_officer=r.get("verified_by_officer", False),
+                    weight_multiplier=r.get("weight_multiplier", 1.0),
+                    timestamp=r.get("timestamp", ""),
+                    # Same deterministic id scheme as backend/db.py's
+                    # upsert_resolved_graph(), so postgres_id in Neo4j always
+                    # matches RelationshipRecord.id in Postgres for this edge.
+                    postgres_id=f"REL_{src}_{tgt}_{rel_t}_{dom}",
+                    status=r.get("status", "ACTIVE")
+                )
+        except Exception as e:
+            print(f"[BuildGraph Warning] Neo4j mirror write failed (SQLite/Postgres persistence is unaffected): {e}")
 
     return {
         "total_entities": len(entities_dict),

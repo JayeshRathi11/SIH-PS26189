@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.db import init_db
 from backend.routers import graph, entities, documents, pipeline, evaluation, auth, patterns, feedback, dossier, audit, cases, ws
 from backend.ws_manager import manager
+from pipeline.graph.neo4j_client import get_neo4j_client, close_neo4j_client
 
 app = FastAPI(
     title="NexusTrace API",
@@ -61,6 +62,20 @@ app.include_router(ws.router)
 @app.on_event("startup")
 async def _capture_event_loop_for_ws():
     manager.loop = asyncio.get_running_loop()
+
+# Single persistent Neo4j driver for the whole app's lifetime, connected
+# once here instead of per-request (GraphDatabase.driver() does a real
+# network handshake + auth round-trip -- creating one per confirm/reject
+# request was the source of the feedback endpoint's extra latency).
+# connect() itself no-ops safely into self.driver = None if Neo4j isn't
+# reachable, matching the existing "optional graph mirror" behavior.
+@app.on_event("startup")
+async def _connect_neo4j():
+    get_neo4j_client()
+
+@app.on_event("shutdown")
+async def _close_neo4j():
+    close_neo4j_client()
 
 @app.get("/")
 def root():
