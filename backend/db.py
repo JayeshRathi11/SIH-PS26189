@@ -326,6 +326,34 @@ def seed_default_cases(db):
         ))
     db.commit()
 
+def seed_case_if_missing(db, case_id: str):
+    """
+    Idempotently backfills ONE specific row from DEFAULT_CASES by id --
+    checks for that exact id first and inserts only if missing, never
+    touching or re-seeding any other row. Separate from seed_default_cases()
+    above on purpose: that function only ever runs when the whole table is
+    empty, so a domain added to DEFAULT_CASES after the table was already
+    seeded elsewhere (e.g. production) never gets backfilled by it. This is
+    the safe way to add exactly one new case to an already-populated table --
+    e.g. `seed_case_if_missing(db, "case-11")` to backfill the Crimes
+    Against Women case without touching the 10 (or however many) existing
+    rows already there. Returns True if it inserted a row, False if the id
+    was already present (or isn't a known DEFAULT_CASES entry).
+    """
+    if db.query(CaseRecord).filter(CaseRecord.id == case_id).first():
+        return False
+    match = next((c for c in DEFAULT_CASES if c["id"] == case_id), None)
+    if not match:
+        return False
+    order = DEFAULT_CASES.index(match)
+    db.add(CaseRecord(
+        id=match["id"], case_id=match["case_id"], title=match["title"],
+        entities_label=match["entities_label"], links_label=match["links_label"],
+        tag=match["tag"], sort_order=order,
+    ))
+    db.commit()
+    return True
+
 # Synthetic reference records for the criminal-history lookup demo -- every
 # name, phone number, vehicle number and case ID here is fictional. Two of
 # these are deliberately reused by the prior-history test flow described in

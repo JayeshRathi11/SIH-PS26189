@@ -4,6 +4,7 @@ import WebcamCaptureModal from '../components/WebcamCaptureModal';
 import {
   runPipeline,
   uploadCaseDocuments,
+  importStructuredData,
   pollPipelineJob,
   archiveCaseRecord,
   deleteCaseRecord,
@@ -50,6 +51,15 @@ export default function CaseFilesPage({
   const [addingEvidence, setAddingEvidence] = useState(false);
   const [evidenceError, setEvidenceError] = useState('');
   const [evidenceMessage, setEvidenceMessage] = useState('');
+  // Structured (CDR / financial CSV) import -- same "merge into this case"
+  // idea as Add Evidence above, but for POST /pipeline/import-structured
+  // (already-structured rows, no LLM extraction) instead of free-text docs.
+  const [showCsvForm, setShowCsvForm] = useState(false);
+  const [csvType, setCsvType] = useState('cdr');
+  const [csvFile, setCsvFile] = useState(null);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [csvError, setCsvError] = useState('');
+  const [csvMessage, setCsvMessage] = useState('');
   const [caseActionBusy, setCaseActionBusy] = useState(false);
   const [caseActionError, setCaseActionError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -267,6 +277,37 @@ export default function CaseFilesPage({
     }
   };
 
+  const handleImportCsv = async (e) => {
+    e.preventDefault();
+    if (!openedCase) return;
+    if (!csvFile) {
+      setCsvError('Choose a CSV file to import.');
+      return;
+    }
+    setImportingCsv(true);
+    setCsvError('');
+    setCsvMessage('');
+    try {
+      const result = await importStructuredData(openedCase.id, csvType, csvFile);
+      // Note: result.total_entities/total_relationships are GLOBAL counts
+      // across every case (see ingest_new_case_incrementally() in
+      // pipeline/resolution/incremental_resolver.py), not scoped to this
+      // case -- don't surface those two fields here, they'd read as this
+      // case's own totals and badly mislead. new/merged counts and the
+      // entity table below (refreshed via onRefreshGraph()) are accurate.
+      setCsvMessage(
+        `Done — processed ${result.rows_processed} row(s): ${result.new_entities_count} new entit${result.new_entities_count === 1 ? 'y' : 'ies'}, ` +
+        `${result.merged_entities_count} merged into existing entities.`
+      );
+      setCsvFile(null);
+      if (onRefreshGraph) onRefreshGraph();
+    } catch (err) {
+      setCsvError(err.message || 'Failed to import CSV.');
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
   // ---- archive / status change / delete for the opened case ----
   const handleToggleArchive = async () => {
     if (!openedCase || isGlobalCase(openedCase)) return;
@@ -362,6 +403,13 @@ export default function CaseFilesPage({
               title="Upload new documents about this case and re-run extraction, keeping what's already been resolved"
             >
               &#128206; Add evidence
+            </button>
+            <button
+              className="tactical-btn"
+              onClick={() => setShowCsvForm((v) => !v)}
+              title="Import a CDR or financial-transaction CSV directly, merged into this case's existing entities"
+            >
+              &#128202; Import CSV
             </button>
             <button
               className="tactical-btn"
@@ -476,6 +524,58 @@ export default function CaseFilesPage({
                 {addingEvidence ? 'Ingesting…' : 'Ingest new evidence'}
               </button>
               <button type="button" className="add-case-cancel-btn" disabled={addingEvidence} onClick={() => setShowEvidenceForm(false)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {showCsvForm && (
+          <form onSubmit={handleImportCsv} className="add-case-form" style={{ maxWidth: '600px', marginBottom: '20px' }}>
+            <div className="add-case-form-title">Import structured data (CSV)</div>
+            <p style={{ margin: '-6px 0 0', fontSize: '10.5px', color: 'var(--ink-muted)' }}>
+              Already-structured call detail records or financial transactions skip document extraction entirely and
+              merge straight into <b>{openedCase.title}</b>'s existing entities (e.g. a phone number already known
+              from a document resolves to the same entity, not a duplicate).
+            </p>
+
+            <select
+              className="add-case-input"
+              value={csvType}
+              onChange={(e) => setCsvType(e.target.value)}
+              style={{ width: 'auto' }}
+            >
+              <option value="cdr">CDR (caller, receiver, timestamp, duration)</option>
+              <option value="financial">Financial (sender_account, receiver_account, amount, date)</option>
+            </select>
+
+            <label className="add-case-dropzone" htmlFor="csv-import-file-input">
+              <span className="add-case-dropzone-icon">&#128202;</span>
+              <span className="add-case-dropzone-text">
+                <strong>{csvFile ? csvFile.name : 'Click to choose a CSV file'}</strong>
+                <span>.csv — column headers must match the selected type</span>
+              </span>
+            </label>
+            <input
+              id="csv-import-file-input"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              style={{ display: 'none' }}
+            />
+
+            {csvError && (
+              <div style={{ fontSize: '11px', color: 'var(--stamp-red)' }}>{csvError}</div>
+            )}
+            {csvMessage && (
+              <div style={{ fontSize: '11px', color: 'var(--stamp-green)' }}>{csvMessage}</div>
+            )}
+
+            <div className="add-case-form-actions">
+              <button type="submit" className="add-case-submit-btn" disabled={importingCsv}>
+                {importingCsv ? 'Importing…' : 'Import CSV'}
+              </button>
+              <button type="button" className="add-case-cancel-btn" disabled={importingCsv} onClick={() => setShowCsvForm(false)}>
                 Cancel
               </button>
             </div>

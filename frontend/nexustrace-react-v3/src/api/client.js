@@ -324,6 +324,52 @@ export async function uploadCaseDocuments(domainId, files) {
   return await response.json();
 }
 
+// Imports a CDR (caller/receiver/timestamp/duration) or financial-transaction
+// (sender_account/receiver_account/amount/date) CSV into the given case --
+// same merge-into-existing-entities behavior as uploadCaseDocuments() above,
+// just for already-structured data instead of free-text documents, so it
+// skips LLM extraction entirely (see POST /pipeline/import-structured).
+// Unlike uploadCaseDocuments()/runPipeline(), this endpoint is synchronous --
+// it returns the finished result directly, no job_id to poll.
+//
+// Resolves caseId through CASE_TO_DOMAIN_MAP the same way runPipeline()/
+// fetchCaseGraph() do (not the same way uploadCaseDocuments() above does --
+// that one passes caseId straight through unresolved, which for any of the
+// 11 pre-seeded "case-N" cases tags new data with the literal string
+// "case-11" etc. instead of the real domain key like
+// "11_crimes_against_women", so it never actually merges with that
+// domain's existing entities or shows up under it). Confirmed by testing:
+// without this resolution, CSV-imported entities silently landed under
+// the wrong domain tag and didn't appear when filtering by the real one.
+export async function importStructuredData(caseId, type, file) {
+  const domainId = CASE_TO_DOMAIN_MAP[caseId] !== undefined ? CASE_TO_DOMAIN_MAP[caseId] : caseId;
+  const formData = new FormData();
+  formData.append('domain', domainId);
+  formData.append('type', type);
+  formData.append('file', file);
+
+  // Same reasoning as uploadCaseDocuments(): leave Content-Type unset so the
+  // browser fills in the correct multipart boundary itself.
+  const token = getAuthToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch('/api/pipeline/import-structured', {
+    method: 'POST',
+    headers,
+    body: formData
+  });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const errBody = await response.json();
+      if (errBody?.detail) detail = formatErrorDetail(errBody.detail);
+    } catch (_) { /* not JSON */ }
+    throw new Error(`Failed to import structured data: ${detail}`);
+  }
+  return await response.json();
+}
+
 export async function fetchCaseDocuments(caseId, skip = 0, limit = 50) {
   const domain = CASE_TO_DOMAIN_MAP[caseId] !== undefined ? CASE_TO_DOMAIN_MAP[caseId] : caseId;
   const params = new URLSearchParams();

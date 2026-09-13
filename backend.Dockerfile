@@ -30,6 +30,20 @@ RUN pip install --no-cache-dir -r backend-requirements.txt -r pipeline-requireme
 COPY backend/ ./backend/
 COPY pipeline/ ./pipeline/
 
+# Source data (data/raw_text/*/combined.txt, data/ground_truth/*.json,
+# data/structured/master_relationships.csv) -- without this, the image had
+# no way to know about ANY domain's source documents or ground-truth answer
+# key, so POST /pipeline/run (the batch re-ingestion path every "Re-run
+# ingestion" button in the UI calls) failed for every domain on any fresh
+# container, not just newly-added ones: parse_all_domains() found zero .txt
+# files to parse, and evaluate_domain() then hard-failed the whole job on
+# the missing ground truth file it also couldn't find. data/processed/ is
+# excluded implicitly -- it's gitignored, so it was never present in the
+# build context to begin with; that directory is runtime-generated cache
+# (extraction cache, parsed_documents.jsonl) and correctly starts empty in
+# a fresh container rather than shipping stale data baked into the image.
+COPY data/ ./data/
+
 # .env is NOT copied into the image -- it's supplied at run time via
 # docker-compose's `env_file:` (see docker-compose.yml). Never bake secrets
 # into an image layer; anyone with the image can extract them.
