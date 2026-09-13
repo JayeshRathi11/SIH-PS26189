@@ -14,7 +14,7 @@ from pipeline.resolution.entity_resolver import EntityResolver
 from pipeline.graph.build_graph import build_graph_and_compute_analytics
 from pipeline.ingestion.parse_documents import extract_text_from_docx, extract_text_from_pdf, extract_text_from_image
 from pipeline.config import EntityType, MasterRelationshipType
-from backend.db import get_db, JobRecord, SessionLocal, User, UserRole
+from backend.db import get_db, JobRecord, SessionLocal, User, UserRole, DocumentMetadata, EvidenceLedgerRecord
 from backend.routers.auth import require_role, get_current_user, log_audit, get_client_ip
 from backend.ws_manager import manager
 from pipeline.run_pipeline import run_pipeline_end_to_end
@@ -239,6 +239,43 @@ async def upload_case_document(
                 jf.write(json.dumps(doc_record, ensure_ascii=False) + "\n")
         except Exception:
             pass
+
+        # Durable copy of the same record in Postgres -- the JSONL above
+        # lives on local disk, which is wiped on every redeploy on hosts
+        # without a persistent volume mounted (e.g. Render's default free
+        # web service). Before this, a live-uploaded document's text/hash
+        # existed nowhere else: unlike the 10 pre-loaded demo domains
+        # (whose source text is committed to data/raw_text/ and gets
+        # re-synced to DocumentMetadata/EvidenceLedgerRecord by
+        # parse_all_domains() on every pipeline run), this endpoint never
+        # wrote to either table, so a redeploy permanently lost the
+        # "Primary Evidence Documents" entry with nothing to regenerate it
+        # from. Matches the id scheme parse_all_domains() uses
+        # (domain_doc-id) so both write paths stay consistent. Wrapped
+        # defensively, same reasoning as the JSONL write above: this is
+        # evidence-viewer bookkeeping, never a reason to fail the upload.
+        try:
+            db.add(DocumentMetadata(
+                id=f"{domain}_{doc_record['doc_id']}",
+                doc_id=doc_record["doc_id"],
+                domain=domain,
+                doc_type=doc_record["doc_type"],
+                source_file=filename,
+                sha256_hash=file_hash,
+                parsed_json=doc_record
+            ))
+            db.add(EvidenceLedgerRecord(
+                doc_id=doc_record["doc_id"],
+                domain=domain,
+                sha256_hash=file_hash,
+                byte_size=len(text.encode("utf-8")),
+                source_file=filename,
+                redaction_count=0
+            ))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[Upload Warning] Failed to persist document metadata to DB for {filename}: {e}")
 
     if not combined_parts:
         detail = "Could not extract any text from the uploaded document(s)."

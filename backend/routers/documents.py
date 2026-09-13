@@ -18,9 +18,40 @@ def load_parsed_docs() -> List[dict]:
                 docs.append(json.loads(line))
     return docs
 
+def load_all_documents() -> List[dict]:
+    """
+    Postgres (DocumentMetadata) is the durable, primary source -- both the
+    original batch-loaded domains (synced by parse_all_domains()) and live
+    uploads (synced by upload_case_document() in backend/routers/
+    pipeline.py) persist there. The local JSONL is merged in only as a
+    fallback for whatever it has that Postgres doesn't (e.g. a document
+    synced before DocumentMetadata was written for live uploads), keyed by
+    domain+doc_id since doc_id alone isn't guaranteed unique across
+    domains -- so nothing already on disk is silently dropped by
+    preferring Postgres.
+    """
+    docs_by_key: dict = {}
+    try:
+        from backend.db import SessionLocal, DocumentMetadata
+        db = SessionLocal()
+        try:
+            for rec in db.query(DocumentMetadata).all():
+                if rec.parsed_json:
+                    docs_by_key[rec.id] = rec.parsed_json
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Documents Warning] Failed to load DocumentMetadata from DB: {e}")
+
+    for doc in load_parsed_docs():
+        key = f"{doc.get('domain', '')}_{doc.get('doc_id', '')}"
+        docs_by_key.setdefault(key, doc)
+
+    return list(docs_by_key.values())
+
 @router.get("", response_model=List[DocumentResponse])
 def list_documents(domain: Optional[str] = Query(None), current_user: User = Depends(get_current_user)):
-    docs = load_parsed_docs()
+    docs = load_all_documents()
     if domain:
         docs = [d for d in docs if domain in d.get("domain", "")]
     return [
@@ -37,7 +68,7 @@ def list_documents(domain: Optional[str] = Query(None), current_user: User = Dep
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
 def get_document_by_id(doc_id: str, current_user: User = Depends(get_current_user)):
-    docs = load_parsed_docs()
+    docs = load_all_documents()
     for d in docs:
         if d["doc_id"] == doc_id:
             return DocumentResponse(
